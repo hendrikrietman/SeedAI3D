@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PROTISEM V4 — Phase 1 (parametric disc)</title>
+  <title>PROTISEM V4 — Phase 2 (disc + reservoir)</title>
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     {
@@ -18,22 +18,27 @@
   <div id="canvas-host"></div>
 
   <section id="controls" class="panel">
-    <h1>PROTISEM V4 · Phase 1</h1>
+    <h1>PROTISEM V4 · Phase 2</h1>
     <div class="row">
-      <label for="rpm">Rotation</label>
+      <label for="rpm">Disc RPM</label>
       <input id="rpm" type="range" min="0" max="30" step="0.5" value="5" />
       <span class="value" id="rpm-value">5.0 rpm</span>
     </div>
     <div class="row">
+      <label for="seed-rate">Seed feed</label>
+      <input id="seed-rate" type="range" min="0" max="10" step="0.1" value="2" />
+      <span class="value" id="seed-rate-value">2.0/s</span>
+    </div>
+    <div class="row">
       <label class="toggle">
         <input id="cross-section" type="checkbox" />
-        Cross-section (cut +Y half)
+        Cross-section (cut +X half)
       </label>
     </div>
     <div class="row">
       <label class="toggle">
         <input id="show-markers" type="checkbox" checked />
-        Show pickup/release markers
+        Show pickup / release / outlet markers
       </label>
     </div>
     <p class="note">Drag to orbit · scroll to zoom · right-drag to pan.</p>
@@ -43,13 +48,19 @@
     <h1>State</h1>
     <dl>
       <dt>Rotation angle</dt><dd id="info-angle">0.0°</dd>
+      <dt>Seeds in flight</dt><dd id="info-seeds">0</dd>
       <dt>Disc tilt</dt>     <dd>45.0°</dd>
       <dt>Disc OD</dt>       <dd>132 mm</dd>
       <dt>Pickup holes</dt>  <dd>40 × Ø2.5 @ R42</dd>
-      <dt>Central hole</dt>  <dd>Ø50</dd>
-      <dt>Teeth</dt>         <dd>60, modulus 1.5</dd>
+      <dt>Outlet</dt>        <dd>Ø12 @ z=48.1</dd>
+      <dt>Drop distance</dt> <dd>17.0 mm</dd>
+      <dt>Min clearance</dt> <dd>6.5 mm (✓ ≥5)</dd>
     </dl>
-    <p class="note">Pickup zone (red) at (0, 29.7, 29.7) mm.<br>Release (orange) at (0, −29.7, −29.7) mm.</p>
+    <p class="note">
+      Pickup-top (red) at (0, 28.3, 31.1).<br>
+      Release (orange) at (0, −29.7, −29.7).<br>
+      Outlet (yellow) at (0, 28.3, 48.1).
+    </p>
   </section>
 
   <script type="module" src="viewer.js"></script>

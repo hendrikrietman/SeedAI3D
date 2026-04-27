@@ -28,6 +28,13 @@ PARAMS = {
     "PICKUP_HOLE_DIA": 2.5,
     "TOOTH_COUNT": 60,
     "DISC_TILT_DEG": 45.0,
+    "RESERVOIR_TOP_X": 60.0,
+    "RESERVOIR_TOP_Y": 60.0,
+    "RESERVOIR_OUTLET_DIA": 12.0,
+    "RESERVOIR_HEIGHT": 80.0,
+    "RESERVOIR_WALL": 2.0,
+    "RESERVOIR_OUTLET_CLEARANCE": 17.0,
+    "MIN_CLEARANCE_MM": 5.0,
 }
 
 
@@ -154,22 +161,137 @@ def render_cross_section_png(mesh: trimesh.Trimesh, out_path: Path) -> None:
     plt.close(fig)
 
 
+def check_reservoir(stl_path: Path) -> list[CheckResult]:
+    results: list[CheckResult] = []
+
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists",
+        True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+
+    results.append(CheckResult(
+        "watertight",
+        bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # Bounding box: 60×60 footprint × 80 tall, centred over PICKUP_TOP_POS
+    extents = mesh.extents
+    expected_extents = (60.0, 60.0, 80.0)
+    diffs = [abs(extents[i] - expected_extents[i]) for i in range(3)]
+    bbox_ok = all(d < 1.0 for d in diffs)
+    results.append(CheckResult(
+        "bounding_box",
+        bbox_ok,
+        f"got={extents.round(2).tolist()}, expected≈{list(expected_extents)}",
+    ))
+
+    # Outlet bottom should sit at z = PICKUP_TOP_POS_Z + clearance ≈ 45.11
+    tilt = math.radians(PARAMS["DISC_TILT_DEG"])
+    pickup_top_z = (
+        PARAMS["PICKUP_HOLE_RADIUS"] * math.sin(tilt)
+        + (PARAMS["DISC_THICKNESS"] / 2) * math.cos(tilt)
+    )
+    expected_z_min = pickup_top_z + PARAMS["RESERVOIR_OUTLET_CLEARANCE"]
+    actual_z_min = float(mesh.bounds[0, 2])
+    results.append(CheckResult(
+        "outlet_height",
+        abs(actual_z_min - expected_z_min) < 0.5,
+        f"outlet z={actual_z_min:.2f}, expected={expected_z_min:.2f}",
+    ))
+
+    # Inner volume: enclosed cavity capacity. We can't easily measure cavity
+    # alone, but mesh.volume is the SHELL volume. Sanity: shell ≈ surface_area * wall.
+    shell_volume = mesh.volume
+    surface_area = mesh.area
+    expected_shell = surface_area / 2 * PARAMS["RESERVOIR_WALL"]  # rough
+    results.append(CheckResult(
+        "shell_volume_sane",
+        0.5 * expected_shell < shell_volume < 2.0 * expected_shell,
+        f"shell_volume={shell_volume:.0f} mm³, surface_area={surface_area:.0f} mm²",
+    ))
+
+    return results
+
+
+def check_clearance(disc_stl: Path, reservoir_stl: Path,
+                    min_mm: float = 5.0, n_samples: int = 4000) -> list[CheckResult]:
+    if not (disc_stl.exists() and reservoir_stl.exists()):
+        return [CheckResult("clearance_files", False,
+                            f"missing inputs: {disc_stl}, {reservoir_stl}")]
+
+    disc = trimesh.load(disc_stl, force="mesh")
+    res = trimesh.load(reservoir_stl, force="mesh")
+
+    # Sample the reservoir surface uniformly, find each point's nearest
+    # point on the disc surface.
+    pts, _ = trimesh.sample.sample_surface(res, n_samples)
+    closest, distances, _ = trimesh.proximity.closest_point(disc, pts)
+    min_dist = float(distances.min())
+    mean_dist = float(distances.mean())
+
+    # Index of the closest point — useful for diagnostics.
+    idx = int(distances.argmin())
+    near = pts[idx]
+
+    return [CheckResult(
+        "reservoir_disc_clearance",
+        min_dist >= min_mm,
+        f"min={min_dist:.2f} mm @ {near.round(2).tolist()}, mean={mean_dist:.2f} mm",
+    )]
+
+
 def main() -> int:
-    stl = ROOT / "stl" / "v4_1" / "disc.stl"
-    results = check_disc(stl)
-    for r in results:
+    print("=== Phase 1: disc ===")
+    disc_stl_v1 = ROOT / "stl" / "v4_1" / "disc.stl"
+    disc_results = check_disc(disc_stl_v1)
+    for r in disc_results:
+        print(r)
+    if disc_stl_v1.exists():
+        try:
+            mesh = trimesh.load(disc_stl_v1, force="mesh")
+            render_cross_section_png(
+                mesh, ROOT / "renders" / "v4_1" / "disc_cross_section.png"
+            )
+            print("→ renders/v4_1/disc_cross_section.png")
+        except Exception as exc:
+            print(f"[WARN] disc cross-section render failed: {exc}")
+
+    print()
+    print("=== Phase 2: reservoir ===")
+    res_stl = ROOT / "stl" / "v4_2" / "reservoir.stl"
+    disc_stl_v2 = ROOT / "stl" / "v4_2" / "disc.stl"
+    res_results = check_reservoir(res_stl)
+    for r in res_results:
         print(r)
 
-    # Try rendering a cross-section even if some checks failed
-    if stl.exists():
-        try:
-            mesh = trimesh.load(stl, force="mesh")
-            render_cross_section_png(mesh, ROOT / "renders" / "v4_1" / "disc_cross_section.png")
-            print("Cross-section PNG written to renders/v4_1/disc_cross_section.png")
-        except Exception as exc:
-            print(f"[WARN] Cross-section render failed: {exc}")
+    print()
+    print("=== Phase 2: disc-reservoir clearance ===")
+    clearance_results = check_clearance(
+        disc_stl_v2, res_stl, min_mm=PARAMS["MIN_CLEARANCE_MM"]
+    )
+    for r in clearance_results:
+        print(r)
 
-    failed = [r for r in results if not r.passed]
+    if disc_stl_v2.exists() and res_stl.exists():
+        try:
+            disc = trimesh.load(disc_stl_v2, force="mesh")
+            res = trimesh.load(res_stl, force="mesh")
+            combined = trimesh.util.concatenate([disc, res])
+            render_cross_section_png(
+                combined, ROOT / "renders" / "v4_2" / "assembly_cross_section.png"
+            )
+            print("→ renders/v4_2/assembly_cross_section.png")
+        except Exception as exc:
+            print(f"[WARN] assembly cross-section render failed: {exc}")
+
+    all_results = disc_results + res_results + clearance_results
+    failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 
 

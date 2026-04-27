@@ -23,6 +23,23 @@
 
 ---
 
+## D4 — Reservoir outlet clearance: 17 mm above pickup-top, not 5–8 mm (Phase 2)
+
+**Date:** 2026-04-27.
+**Question:** The plan called for the reservoir outlet to sit 5–8 mm above the pickup-zone, with a Ø12 outlet and ≥5 mm clearance from the disc everywhere.
+
+**Geometric finding:** With the disc tilted 45° around X, the disc top surface follows the plane `z = y + 2.828`. A horizontal Ø12 outlet centered above the pickup-top point `(0, 28.28, 31.11)` has its outer wall (Ø16 with 2 mm wall) reaching to `(0, 36.28, z_out)`. For ≥5 mm perpendicular clearance to the disc top plane:
+
+> `cos(45°) · (z_out − 36.28 − 2.828) ≥ 5  ⇒  z_out ≥ 48.1`
+
+i.e. **the outlet must be ≥17 mm above the pickup-top point**. With 5–8 mm clearance, the outer rim clips the rising disc surface.
+
+**Decision:** Set `RESERVOIR_OUTLET_CLEARANCE = 17` mm. Outlet at `(0, 28.284, 48.113)`. Drop distance to disc-top is 17 mm. Validation confirms ≥6.5 mm minimum clearance (`reservoir_disc_clearance` check).
+
+**Consequence / future options:** to recover the original 5–8 mm range, either (a) shrink the outlet (Ø6–8), (b) tilt the outlet plane parallel to the disc (seeds would no longer fall vertically), or (c) shape the outlet asymmetrically — bias the +Y rim inward. Defer until physical testing shows whether 17 mm drop causes seed bouncing.
+
+---
+
 ## D3 — Three.js vendoring strategy (Phase 1)
 
 **Decision:** Vendor only the three files we use (`three.module.js`, `OrbitControls.js`, `STLLoader.js`) into `viewer/vendor/`, total 1.3 MB. Resolve via importmap.

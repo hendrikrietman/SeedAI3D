@@ -40,12 +40,47 @@ DISC_TILT_DEG        = 45;     // rotate([DISC_TILT_DEG, 0, 0])
 
 // Derived disc-frame vectors (after tilt)
 DISC_NORMAL          = [0, -sin(DISC_TILT_DEG), cos(DISC_TILT_DEG)];
+
+// Pickup at disc MID-plane (the spec coordinate)
 PICKUP_POS           = [0,
                         PICKUP_HOLE_RADIUS * cos(DISC_TILT_DEG),
                         PICKUP_HOLE_RADIUS * sin(DISC_TILT_DEG)];
+// Pickup at disc TOP surface = mid-plane offset by +(thickness/2) along normal.
+// This is the actual world position where a seed dropped from above lands.
+PICKUP_TOP_POS       = [0,
+                        PICKUP_HOLE_RADIUS * cos(DISC_TILT_DEG)
+                            - DISC_THICKNESS/2 * sin(DISC_TILT_DEG),
+                        PICKUP_HOLE_RADIUS * sin(DISC_TILT_DEG)
+                            + DISC_THICKNESS/2 * cos(DISC_TILT_DEG)];
 RELEASE_POS          = [0,
                         -PICKUP_HOLE_RADIUS * cos(DISC_TILT_DEG),
                         -PICKUP_HOLE_RADIUS * sin(DISC_TILT_DEG)];
+
+// Disc TOP surface plane equation in world coords (within disc extent):
+//     z = y + DISC_TOP_Z_OFFSET
+// Derivation: pre-tilt top at z=+t/2 maps under rotate([45,0,0]) to
+//     y_w = -t/2 · sin(tilt),   z_w = +t/2 · cos(tilt)
+// hence z_w - y_w = t·cos(tilt). For t=4, tilt=45° → 2.828 mm.
+DISC_TOP_Z_OFFSET    = DISC_THICKNESS * cos(DISC_TILT_DEG);
+
+// ==========================================================================
+// RESERVOIR (Phase 2)
+// ==========================================================================
+RESERVOIR_TOP_X      = 60;   // top opening, X
+RESERVOIR_TOP_Y      = 60;   // top opening, Y
+RESERVOIR_OUTLET_DIA = 12;
+RESERVOIR_HEIGHT     = 80;
+RESERVOIR_WALL       = 2;
+
+// Vertical clearance from outlet bottom to the disc TOP surface at the
+// pickup-hole position. The original plan called for 5–8 mm; with a
+// Ø12 outlet over a 45°-tilted disc, that clips the +Y side of the
+// rim into the rising disc. 17 mm gives ≥6 mm perpendicular clearance
+// at the outer wall (Ø16). See docs/decisions.md D4.
+RESERVOIR_OUTLET_CLEARANCE = 17;
+RESERVOIR_OUTLET_POS = [PICKUP_TOP_POS[0],
+                        PICKUP_TOP_POS[1],
+                        PICKUP_TOP_POS[2] + RESERVOIR_OUTLET_CLEARANCE];
 
 // ==========================================================================
 // HOUSING (used in later phases, declared here for reference)
