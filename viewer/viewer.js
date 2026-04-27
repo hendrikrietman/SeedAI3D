@@ -223,11 +223,16 @@ let dropTubeMesh = null;
 let vacuumChamberMesh = null;
 const loader = new STLLoader();
 
+const STL_CACHE_BUST = `?v=${Date.now()}`;
 function loadStl(path, mat, onMesh) {
-  loader.load(path, (geometry) => {
+  const url = path + STL_CACHE_BUST;
+  loader.load(url, (geometry) => {
     geometry.computeVertexNormals();
     const m = new THREE.Mesh(geometry, mat);
     scene.add(m);
+    geometry.computeBoundingBox();
+    const bb = geometry.boundingBox;
+    console.log(`[stl ✓] ${path} loaded — bounds x[${bb.min.x.toFixed(1)},${bb.max.x.toFixed(1)}] y[${bb.min.y.toFixed(1)},${bb.max.y.toFixed(1)}] z[${bb.min.z.toFixed(1)},${bb.max.z.toFixed(1)}]`);
     if (onMesh) onMesh(m);
   }, undefined, (err) => console.error(`${path} load failed:`, err));
 }
