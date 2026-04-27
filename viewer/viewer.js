@@ -232,11 +232,38 @@ function loadStl(path, mat, onMesh) {
 
 loadStl('./models/disc.stl',       discMat,        (m) => { disc = m; });
 loadStl('./models/seed_pool.stl',  poolMat);
-loadStl('./models/afstrijker.stl',  afstrijkerMat, (m) => { afstrijkerMesh  = m; });
-loadStl('./models/afstrijker2.stl', afstrijkerMat, (m) => { afstrijker2Mesh = m; });
-loadStl('./models/geleider.stl',   geleiderMat,    (m) => { geleiderMesh = m; });
+loadStl('./models/afstrijker.stl',  afstrijkerMat, (m) => {
+  afstrijkerMesh  = m;
+  m.updateMatrixWorld(true);
+  verifyMeshAgainstAnchor('afstrijker1', m, ANCHOR.afstrijker1, 1.5);
+});
+loadStl('./models/afstrijker2.stl', afstrijkerMat, (m) => {
+  afstrijker2Mesh = m;
+  m.updateMatrixWorld(true);
+  verifyMeshAgainstAnchor('afstrijker2', m, ANCHOR.afstrijker2, 1.5);
+});
+loadStl('./models/geleider.stl',   geleiderMat,    (m) => {
+  geleiderMesh = m;
+  m.updateMatrixWorld(true);
+  // Geleider has long curved body; check sign of disc_plane_eq, not strict Δ.
+  const c = meshCentroid(m);
+  console.log(
+    `[anchor ✓] geleider STL centroid (${c.x.toFixed(2)}, ${c.y.toFixed(2)}, ` +
+    `${c.z.toFixed(2)}) | disc_plane_eq=${discPlaneEq(c).toFixed(2)} ` +
+    `(expect <0 for front-side) | ${discPlaneEq(c) < 0 ? 'PASS' : 'FAIL'}`,
+  );
+});
 loadStl('./models/drop_tube.stl',  dropTubeMat,    (m) => { dropTubeMesh = m; });
-loadStl('./models/vacuum_chamber.stl', vacuumChamberMat, (m) => { vacuumChamberMesh = m; });
+loadStl('./models/vacuum_chamber.stl', vacuumChamberMat, (m) => {
+  vacuumChamberMesh = m;
+  m.updateMatrixWorld(true);
+  verifyMeshAgainstAnchor('vacuum_chamber', m, ANCHOR.chamber, 2.0);
+  const c = meshCentroid(m);
+  console.log(
+    `[anchor ✓] chamber back-side check: disc_plane_eq=${discPlaneEq(c).toFixed(2)} ` +
+    `(expect >0 for back-side) | ${discPlaneEq(c) > 0 ? 'PASS' : 'FAIL'}`,
+  );
+});
 
 // ============================================================================
 //  Pool fill — visible seed pile, with refill so the animation never starves
@@ -305,6 +332,138 @@ function verifyFrontNormalOnce(holePos, seedPos) {
   }
   _frontNormalVerified = true;
 }
+
+// ============================================================================
+//  ANCHOR-BASED VERIFICATION  (2026-04-27)
+//
+//  Spec: afstrijkers physically must be on the seed-side of the disc, since
+//  their job is to brush off mis-attached seeds. They are therefore the
+//  visual ground truth for "front side". All other front-side components
+//  (pool, attached seeds, geleider mouth) must lie on the same side as the
+//  afstrijkers; the back-side component (vacuum chamber + nipple) must lie
+//  on the opposite side.
+//
+//  Each anchor's expected centroid is computed by offsetting the relevant
+//  rim point along ±FRONT_NORMAL by the SCAD's chosen standoff. On STL
+//  load we compute the loaded mesh centroid and check (i) the same-Y-sign
+//  test from the spec, (ii) sign of disc_plane_eq, and (iii) Euclidean
+//  distance to the computed expected centroid.
+// ============================================================================
+
+const DISC_THICKNESS = 4;
+const AFS_HEIGHT  = 8;     // afstrijker 1 blade height
+const AFS2_HEIGHT = 6;     // afstrijker 2 blade height
+
+function rimPointWorld(thetaDeg) {
+  const t = thetaDeg * Math.PI / 180;
+  return new THREE.Vector3(
+    R_PICKUP * Math.cos(t),
+    R_PICKUP * Math.sin(t) * COS_T,
+    R_PICKUP * Math.sin(t) * SIN_T,
+  );
+}
+
+function offsetAlongFront(rimPt, distance) {
+  return rimPt.clone().add(FRONT_NORMAL.clone().multiplyScalar(distance));
+}
+
+// SCAD blade-centroid is at offset (DISC_THICKNESS/2 + height/2 + 1) along
+// FRONT_NORMAL from the rim point at the blade's θ.
+const AFS1_OFFSET  = DISC_THICKNESS / 2 + AFS_HEIGHT  / 2 + 1;   // 7
+const AFS2_OFFSET  = DISC_THICKNESS / 2 + AFS2_HEIGHT / 2 + 1;   // 6
+
+const ANCHOR = {
+  afstrijker1: offsetAlongFront(rimPointWorld(250), AFS1_OFFSET),
+  afstrijker2: offsetAlongFront(rimPointWorld(95),  AFS2_OFFSET),
+  seedAtPickup: offsetAlongFront(rimPointWorld(270), SEED_RADIUS),
+  // Geleider catch-mouth is on the front side at the release end:
+  geleiderMouth: new THREE.Vector3(0, GELEIDER.mouthYCenter, GELEIDER.mouthZ),
+  // Vacuum chamber centroid is on the BACK side (-FRONT_NORMAL); the
+  // SCAD-validated centroid is (-26.67, -6.67, +6.67).
+  chamber: new THREE.Vector3(-26.67, -6.67, 6.67),
+};
+
+function meshCentroid(mesh) {
+  mesh.geometry.computeBoundingBox();
+  const c = new THREE.Vector3();
+  mesh.geometry.boundingBox.getCenter(c);
+  c.applyMatrix4(mesh.matrixWorld);
+  return c;
+}
+
+function logAnchorReport() {
+  const POOL_Y = POOL.yCenter;       // -30
+  const RELEASE_Y = +29.7;
+  const sameSign = (a, b) => Math.sign(a) === Math.sign(b) && a !== 0;
+  console.log('=== ANCHOR-BASED VERIFICATION ===');
+  console.log(
+    `FRONT_NORMAL = (${FRONT_NORMAL.x.toFixed(4)}, ` +
+    `${FRONT_NORMAL.y.toFixed(4)}, ${FRONT_NORMAL.z.toFixed(4)})`,
+  );
+
+  const a1 = ANCHOR.afstrijker1;
+  console.log(
+    `[anchor] afstrijker1 (θ=250°) expected centroid ` +
+    `(${a1.x.toFixed(2)}, ${a1.y.toFixed(2)}, ${a1.z.toFixed(2)})`,
+  );
+  console.log(
+    `         pool y_center=${POOL_Y}, afstrijker1.y=${a1.y.toFixed(2)} ` +
+    `→ same Y sign? ${sameSign(POOL_Y, a1.y)} ` +
+    `(disc_plane_eq=${discPlaneEq(a1).toFixed(2)}, expect <0)`,
+  );
+
+  const a2 = ANCHOR.afstrijker2;
+  console.log(
+    `[anchor] afstrijker2 (θ=95°)  expected centroid ` +
+    `(${a2.x.toFixed(2)}, ${a2.y.toFixed(2)}, ${a2.z.toFixed(2)})`,
+  );
+  console.log(
+    `         release y=${RELEASE_Y}, afstrijker2.y=${a2.y.toFixed(2)} ` +
+    `→ same Y sign? ${sameSign(RELEASE_Y, a2.y)} ` +
+    `(disc_plane_eq=${discPlaneEq(a2).toFixed(2)}, expect <0)`,
+  );
+
+  const sp = ANCHOR.seedAtPickup;
+  console.log(
+    `[anchor] seed at pickup (θ=270°) expected ` +
+    `(${sp.x.toFixed(2)}, ${sp.y.toFixed(2)}, ${sp.z.toFixed(2)}) ` +
+    `→ pool y same sign? ${sameSign(POOL_Y, sp.y)} ` +
+    `(disc_plane_eq=${discPlaneEq(sp).toFixed(2)}, expect <0)`,
+  );
+
+  const gm = ANCHOR.geleiderMouth;
+  console.log(
+    `[anchor] geleider mouth at (${gm.x.toFixed(2)}, ${gm.y.toFixed(2)}, ` +
+    `${gm.z.toFixed(2)}) → release y same sign? ${sameSign(RELEASE_Y, gm.y)} ` +
+    `(disc_plane_eq=${discPlaneEq(gm).toFixed(2)}, expect <0)`,
+  );
+
+  const cc = ANCHOR.chamber;
+  console.log(
+    `[anchor] chamber centroid (${cc.x.toFixed(2)}, ${cc.y.toFixed(2)}, ` +
+    `${cc.z.toFixed(2)}) → opposite-of-pool? ${!sameSign(POOL_Y, cc.y)} ` +
+    `(disc_plane_eq=${discPlaneEq(cc).toFixed(2)}, expect >0)`,
+  );
+
+  console.log('=== /ANCHOR ===');
+}
+
+function verifyMeshAgainstAnchor(label, mesh, anchor, tolMm) {
+  const c = meshCentroid(mesh);
+  const d = c.distanceTo(anchor);
+  const eq = discPlaneEq(c);
+  console.log(
+    `[anchor ✓] ${label} STL centroid (${c.x.toFixed(2)}, ` +
+    `${c.y.toFixed(2)}, ${c.z.toFixed(2)}) | ` +
+    `expected (${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)}, ` +
+    `${anchor.z.toFixed(2)}) | ` +
+    `Δ=${d.toFixed(2)} mm (tol ${tolMm}) | ` +
+    `disc_plane_eq=${eq.toFixed(2)} | ` +
+    `${d <= tolMm ? 'PASS' : 'FAIL'}`,
+  );
+}
+
+logAnchorReport();
 
 // ============================================================================
 //  Per-hole state, rotation

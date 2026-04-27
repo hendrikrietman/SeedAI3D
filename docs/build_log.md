@@ -297,3 +297,61 @@ teeth until Phase 6.
 **Tag:** v5.4. Phase 4 closes the V5 functional viewer. Next:
 print preparation — production STL export, PLA proof-of-concept print
 (disc + pool + afstrijkers + geleider + drop-tube + vacuum chamber).
+
+## V5 anchor-based verification (2026-04-27)
+
+Replaced abstract coordinate reasoning with anchor-based positioning. The
+afstrijkers physically must be on the seed-side of the disc — that's their
+job. They are therefore the visual ground truth. Once afstrijker positions
+are derived from FRONT_NORMAL and confirmed visible on the pool side, all
+other front-side components (attached seeds, geleider mouth) are positioned
+along the same FRONT_NORMAL; the back-side component (vacuum chamber +
+hose nipple) is positioned along -FRONT_NORMAL.
+
+**FRONT_NORMAL (unchanged)**: `(0, +sin45°, -cos45°) ≈ (0, +0.707, -0.707)`.
+
+**Anchor logging in viewer.js.** Added `logAnchorReport()` that runs at
+startup and prints expected centroids for: afstrijker1 (θ=250°),
+afstrijker2 (θ=95°), seed at pickup (θ=270°), geleider mouth, and chamber.
+For each anchor it logs the same-Y-sign test (does it match the pool /
+release reference?) plus the sign of disc_plane_eq (negative = front,
+positive = back). On STL load, every loaded mesh's centroid is compared
+to the computed anchor — afstrijker1 / afstrijker2 / chamber via
+Euclidean distance with tolerance, geleider via sign-of-eq alone (its
+curved hull spreads its centroid).
+
+**Three-view rendered confirmation** (renders/v5_4_anchor/):
+
+- `iso.png` — familiar iso-view; chamber annular ring + hose nipple
+  visible behind disc, pool box at bottom in front of disc, drop-tube
+  through centre, red/orange θ markers at rim bottom and top.
+- `side_x.png` — camera at +X; disc appears as tilted blue stripe
+  diagonal across frame; pool box at lower-left (front-side of disc
+  plane line), chamber back-block + nipple cylinder at upper-right
+  (back-side of disc plane line). Disc plane visibly separates the
+  two halves.
+- `front.png` — camera at -Y; disc seen full-face with 60 teeth.
+  Pool box at bottom in front of the disc. Chamber barely visible as
+  a translucent ring silhouette behind the upper half of the disc;
+  hose nipple peeks out top-left. Matches the spec ("chamber should
+  be HIDDEN behind disc or barely visible as silhouette").
+
+**Acceptance criteria — all met**:
+
+- [x] Both afstrijkers on the pool-side of disc (afstrijker1 at θ=250°
+  with y=-22.96 same-sign as pool y_center=-30; afstrijker2 at θ=95°
+  with y=33.83 same-sign as release y=+29.7)
+- [x] Attached seeds on pool-side (seed at pickup: y=-27.6, z=-31.8;
+  inside pool footprint, on front side of disc plane)
+- [x] Geleider catch-mouth on pool-side (mouth y_center=+30, z=20;
+  disc_plane_eq=-7.07 < 0, front side)
+- [x] Vacuum chamber on opposite side (chamber centroid (-26.67, -6.67,
+  +6.67); disc_plane_eq=+9.43 > 0, back side)
+- [x] Side-view + front-view PNGs visually confirm the separation
+- [x] Console log emits FRONT_NORMAL value and per-anchor verification
+  on every viewer load
+
+No SCAD changes; all geometry already at correct positions from prior
+phases. This is a documentation/verification step that closes the
+"which-side-is-front" thread for good. Skipping rubber-seal work as
+per spec — that's a separate prompt.
