@@ -40,6 +40,30 @@ i.e. **the outlet must be ≥17 mm above the pickup-top point**. With 5–8 mm c
 
 ---
 
+## D5 — Pickup at θ=110°, release at θ=70° (Phase 2 fix)
+
+**Date:** 2026-04-27.
+**Question:** The original Phase-2 build placed the release at the disc's LOWEST point (0, −29.7, −29.7) — the geometric "180° opposite" of the pickup. The V4 concept drawing's "Vooraanzicht schijf" panel shows pickup AND release both near the TOP of the disc, symmetric around the Y axis. Seeds travel the LONG way around the rim (~320°), not the short way through the bottom.
+
+**Decision:** Pickup at θ=110°, release at θ=70° on the pickup-hole circle (R=42), where θ is the disc-local angle and world coords come from `(R·cosθ, R·sinθ·cos45°, R·sinθ·sin45°)`. Both markers at world Z = 27.907 mm, X-separated by 28.73 mm. Seed path is CCW: 110° → 200° → 290° → 360° → 70° = 320° of rotation.
+
+**Reservoir outlet** now shifts to `(−14.365, 27.907, 35.000)` — directly above the new pickup. Vertical clearance dropped from 17 mm to 7.1 mm.
+
+**Geometric consequence — clearance regression:** with the outlet centered at y=27.907 and the Ø16 outer wall reaching to y=35.907, the disc-top plane z = y + 2.828 sits at z=38.735 at that rim. The outlet bottom is at z=35, so the +Y outer rim is BELOW the disc top by 3.7 mm vertical (≈2.6 mm perpendicular). Validation confirms: `min clearance = 0.10 mm` at (−19.7, 32.3, 35.0). The outlet wall and the disc body interfere.
+
+To restore ≥5 mm perpendicular clearance with the outlet centered above PICKUP_POS, the +Y outer rim point must satisfy `z − y ≥ 9.9`. Three options:
+
+1. **Raise outlet to z ≈ 45.8 mm** (clearance back to ~17.9 mm above pickup). Geometrically clean, but the seed drop-distance grows again — risk of bouncing.
+2. **Shrink outlet to Ø6 inner / no outer flange, wall=1**: +Y rim at y = 27.907 + 4 = 31.907 → z − y = 35 − 31.907 = 3.1, still below the 9.9 threshold. So shrinking alone doesn't fix it; would need to also raise z slightly.
+3. **Tilt the outlet plane parallel to the disc** (rotate outlet ≈45° around X so the bottom rim follows the disc surface). Seeds drop along the disc normal, not vertically — physics still works because the disc surface is the relevant plane.
+4. **Asymmetric outlet** — bias the +Y rim inward (D-shaped or oval bottom). Cleanest visually, but harder to print.
+
+**Pending Hendrik's call.** Until then, the build keeps the user's specified marker/outlet positions and the validation script reports the clearance violation honestly rather than masking it.
+
+**Drawing-derived insight:** Front face of the disc rotates UP at the release side (Hendrik's "Schijf draait aan voorzijde omhoog"). With +ω around `DISC_AXIS = (0, −sin45°, cos45°)`, the velocity at release (+14.4, 27.9, 27.9) is in the (0, +y, +z) direction → front face rises into the release zone. Current viewer rotation direction is correct; no reversal needed.
+
+---
+
 ## D3 — Three.js vendoring strategy (Phase 1)
 
 **Decision:** Vendor only the three files we use (`three.module.js`, `OrbitControls.js`, `STLLoader.js`) into `viewer/vendor/`, total 1.3 MB. Resolve via importmap.

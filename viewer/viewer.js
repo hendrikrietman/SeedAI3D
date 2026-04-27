@@ -46,9 +46,11 @@ scene.add(grid);
 // ----- geometric constants (mirror parameters.scad) -----
 const TILT = Math.PI / 4;
 const DISC_AXIS = new THREE.Vector3(0, -Math.sin(TILT), Math.cos(TILT)).normalize();
-const PICKUP_TOP = new THREE.Vector3(0, 28.284, 31.113);
-const OUTLET_POS = new THREE.Vector3(0, 28.284, 48.113);
-const RELEASE_POS = new THREE.Vector3(0, -29.698, -29.698);
+// Pickup θ=110°, release θ=70° → both at world-Z 27.907 (high, near top of disc).
+// Seed travels CCW the long way (~320°) from pickup → bottom → release.
+const PICKUP_POS  = new THREE.Vector3(-14.365, 27.907, 27.907);  // θ=110°
+const RELEASE_POS = new THREE.Vector3( 14.365, 27.907, 27.907);  // θ=70°
+const OUTLET_POS  = new THREE.Vector3(-14.365, 27.907, 35.000);  // 7.1 mm above pickup
 const DISC_TOP_PLANE_OFFSET = 2.828;  // z = y + 2.828 on disc top surface
 const DISC_OD_HALF = 60;              // disc body radius (no teeth)
 
@@ -85,8 +87,8 @@ const markerGroup = new THREE.Group();
     m.position.copy(pos);
     return m;
   };
-  markerGroup.add(mk(PICKUP_TOP,  0xd9342b));   // pickup (red)
-  markerGroup.add(mk(RELEASE_POS, 0xe89a2e));   // release (orange)
+  markerGroup.add(mk(PICKUP_POS,  0xd9342b));   // pickup  (red)   θ=110°
+  markerGroup.add(mk(RELEASE_POS, 0xe89a2e));   // release (orange) θ=70°
   markerGroup.add(mk(OUTLET_POS,  0xf5d33b));   // outlet  (yellow)
 }
 scene.add(markerGroup);

@@ -29,32 +29,35 @@ TOOTH_TIP_FRACTION   = 0.30;   // tooth tip  width as fraction of pitch (trapezo
 // ==========================================================================
 // ORIENTATION
 // --------------------------------------------------------------------------
-// The CLAUDE.md spec lists pickup-zone = (0, 29.7, 29.7). That puts the
-// high point of the disc on the +Y, +Z side of the world, which is only
-// reachable if we tilt the disc around the WORLD X-AXIS (not Y as a naive
-// reader of "disc-normal = (sin45°,0,cos45°)" might assume).
-// We honour the pickup-zone coordinate -- it is the more specific and
-// testable spec. See docs/decisions.md for the full rationale.
+// Tilt around WORLD X-AXIS (rotate([45,0,0])) — disc-normal = (0,-sin45°,cos45°).
+// See docs/decisions.md D1 for the rationale.
 // ==========================================================================
 DISC_TILT_DEG        = 45;     // rotate([DISC_TILT_DEG, 0, 0])
-
-// Derived disc-frame vectors (after tilt)
 DISC_NORMAL          = [0, -sin(DISC_TILT_DEG), cos(DISC_TILT_DEG)];
 
-// Pickup at disc MID-plane (the spec coordinate)
-PICKUP_POS           = [0,
-                        PICKUP_HOLE_RADIUS * cos(DISC_TILT_DEG),
-                        PICKUP_HOLE_RADIUS * sin(DISC_TILT_DEG)];
-// Pickup at disc TOP surface = mid-plane offset by +(thickness/2) along normal.
-// This is the actual world position where a seed dropped from above lands.
-PICKUP_TOP_POS       = [0,
-                        PICKUP_HOLE_RADIUS * cos(DISC_TILT_DEG)
-                            - DISC_THICKNESS/2 * sin(DISC_TILT_DEG),
-                        PICKUP_HOLE_RADIUS * sin(DISC_TILT_DEG)
-                            + DISC_THICKNESS/2 * cos(DISC_TILT_DEG)];
-RELEASE_POS          = [0,
-                        -PICKUP_HOLE_RADIUS * cos(DISC_TILT_DEG),
-                        -PICKUP_HOLE_RADIUS * sin(DISC_TILT_DEG)];
+// Disc-local angle θ for pickup and release. Per the V4 drawing
+// ("Vooraanzicht schijf" detail panel), pickup and release sit symmetrically
+// around the top of the disc (θ=90°), both at HIGH world-Z. The seed travels
+// the LONG way around (~320° CCW) along the outer rim: pickup → bottom → release.
+// World coords on pickup-hole circle for any θ:
+//   x = R·cos(θ)
+//   y = R·sin(θ)·cos(tilt)
+//   z = R·sin(θ)·sin(tilt)
+// See docs/decisions.md D5 for the correction history.
+PICKUP_THETA_DEG     = 110;    // pickup, left of top
+RELEASE_THETA_DEG    =  70;    // release, right of top (symmetric)
+
+PICKUP_POS           = [PICKUP_HOLE_RADIUS * cos(PICKUP_THETA_DEG),
+                        PICKUP_HOLE_RADIUS * sin(PICKUP_THETA_DEG) * cos(DISC_TILT_DEG),
+                        PICKUP_HOLE_RADIUS * sin(PICKUP_THETA_DEG) * sin(DISC_TILT_DEG)];
+RELEASE_POS          = [PICKUP_HOLE_RADIUS * cos(RELEASE_THETA_DEG),
+                        PICKUP_HOLE_RADIUS * sin(RELEASE_THETA_DEG) * cos(DISC_TILT_DEG),
+                        PICKUP_HOLE_RADIUS * sin(RELEASE_THETA_DEG) * sin(DISC_TILT_DEG)];
+
+// Disc TOP surface above PICKUP_POS = mid-plane offset by (t/2) along normal.
+PICKUP_TOP_POS       = [PICKUP_POS[0],
+                        PICKUP_POS[1] + DISC_THICKNESS/2 * DISC_NORMAL[1],
+                        PICKUP_POS[2] + DISC_THICKNESS/2 * DISC_NORMAL[2]];
 
 // Disc TOP surface plane equation in world coords (within disc extent):
 //     z = y + DISC_TOP_Z_OFFSET
@@ -72,15 +75,15 @@ RESERVOIR_OUTLET_DIA = 12;
 RESERVOIR_HEIGHT     = 80;
 RESERVOIR_WALL       = 2;
 
-// Vertical clearance from outlet bottom to the disc TOP surface at the
-// pickup-hole position. The original plan called for 5–8 mm; with a
-// Ø12 outlet over a 45°-tilted disc, that clips the +Y side of the
-// rim into the rising disc. 17 mm gives ≥6 mm perpendicular clearance
-// at the outer wall (Ø16). See docs/decisions.md D4.
-RESERVOIR_OUTLET_CLEARANCE = 17;
-RESERVOIR_OUTLET_POS = [PICKUP_TOP_POS[0],
-                        PICKUP_TOP_POS[1],
-                        PICKUP_TOP_POS[2] + RESERVOIR_OUTLET_CLEARANCE];
+// Vertical clearance from outlet bottom to the disc-mid PICKUP_POS,
+// directly above the pickup hole. Spec range 5–8 mm; 7.1 mm puts the
+// outlet bottom at world z = 35.0. With the offset pickup (θ=110°),
+// the +Y rim of a Ø16 outer reservoir wall still clips the disc body —
+// see docs/decisions.md D4 for the trade-off and proposed mitigations.
+RESERVOIR_OUTLET_CLEARANCE = 7.1;
+RESERVOIR_OUTLET_POS = [PICKUP_POS[0],
+                        PICKUP_POS[1],
+                        PICKUP_POS[2] + RESERVOIR_OUTLET_CLEARANCE];
 
 // ==========================================================================
 // HOUSING (used in later phases, declared here for reference)

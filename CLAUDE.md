@@ -21,9 +21,11 @@
 
 - World: X=left/right, Y=front/back, Z=up
 - Disc centre at origin after rotation
-- Disc normal = (sin45°, 0, cos45°) ≈ (0.707, 0, 0.707), points front-up
-- Pickup zone = highest point on R=42: (0, 29.7, 29.7)
-- Release zone = 180° around disc rim from pickup
+- Disc tilt: rotate([45,0,0]); disc normal = (0, -sin45°, cos45°) ≈ (0, -0.707, +0.707) (D1)
+- World coords on R=42 pickup-hole circle: (R·cosθ, R·sinθ·cos45°, R·sinθ·sin45°)
+- Pickup zone (red)  at θ=110° → (-14.365, 27.907, 27.907) (D5)
+- Release zone (orange) at θ=70° → (+14.365, 27.907, 27.907) (D5)
+- Seed travels CCW the LONG way (~320°): pickup → bottom → release
 
 ## Working discipline
 

@@ -33,7 +33,8 @@ PARAMS = {
     "RESERVOIR_OUTLET_DIA": 12.0,
     "RESERVOIR_HEIGHT": 80.0,
     "RESERVOIR_WALL": 2.0,
-    "RESERVOIR_OUTLET_CLEARANCE": 17.0,
+    "RESERVOIR_OUTLET_CLEARANCE": 7.1,
+    "PICKUP_THETA_DEG": 110.0,
     "MIN_CLEARANCE_MM": 5.0,
 }
 
@@ -191,13 +192,12 @@ def check_reservoir(stl_path: Path) -> list[CheckResult]:
         f"got={extents.round(2).tolist()}, expected≈{list(expected_extents)}",
     ))
 
-    # Outlet bottom should sit at z = PICKUP_TOP_POS_Z + clearance ≈ 45.11
+    # Outlet bottom should sit at z = PICKUP_POS_Z + clearance.
+    # PICKUP_POS_Z = R · sin(θ) · sin(tilt).
     tilt = math.radians(PARAMS["DISC_TILT_DEG"])
-    pickup_top_z = (
-        PARAMS["PICKUP_HOLE_RADIUS"] * math.sin(tilt)
-        + (PARAMS["DISC_THICKNESS"] / 2) * math.cos(tilt)
-    )
-    expected_z_min = pickup_top_z + PARAMS["RESERVOIR_OUTLET_CLEARANCE"]
+    theta = math.radians(PARAMS["PICKUP_THETA_DEG"])
+    pickup_z = PARAMS["PICKUP_HOLE_RADIUS"] * math.sin(theta) * math.sin(tilt)
+    expected_z_min = pickup_z + PARAMS["RESERVOIR_OUTLET_CLEARANCE"]
     actual_z_min = float(mesh.bounds[0, 2])
     results.append(CheckResult(
         "outlet_height",
