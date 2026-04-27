@@ -92,10 +92,64 @@ module disc_envelope_above_floor() {
     }
 }
 
+// =====================================================================
+//  Front-face tube ports (feeder inlet + vac-cleanup outlet).
+//  Each is anchored on the front face at (x_off, y_front, z_off) and
+//  extends OUTWARD (-Y, +Z) at the specified elevation. Cylinder default
+//  axis is +Z; rotate([90 - elev, 0, 0]) tilts it to (0, -cos elev,
+//  +sin elev). Tube body overlaps the wall by SEED_POOL_WALL + EPS so
+//  the union is watertight; the bore extends a few mm further inboard
+//  to fully pierce the wall.
+// =====================================================================
+module front_tube_outer(x_off, z_off, elev_deg, od, length) {
+    translate([x_off,
+               SEED_POOL_Y_CENTER - SEED_POOL_Y / 2,
+               z_off])
+        rotate([90 - elev_deg, 0, 0])
+            translate([0, 0, -SEED_POOL_WALL - EPS])
+                cylinder(d = od, h = length + SEED_POOL_WALL + EPS);
+}
+
+module front_tube_bore(x_off, z_off, elev_deg, id, length) {
+    translate([x_off,
+               SEED_POOL_Y_CENTER - SEED_POOL_Y / 2,
+               z_off])
+        rotate([90 - elev_deg, 0, 0])
+            translate([0, 0, -SEED_POOL_WALL - 5])
+                cylinder(d = id, h = length + SEED_POOL_WALL + 10);
+}
+
+module feeder_tube_outer() {
+    front_tube_outer(FEEDER_TUBE_X, FEEDER_TUBE_Z,
+                     FEEDER_TUBE_ELEV_DEG,
+                     FEEDER_TUBE_OD, FEEDER_TUBE_LENGTH);
+}
+module feeder_tube_bore() {
+    front_tube_bore(FEEDER_TUBE_X, FEEDER_TUBE_Z,
+                    FEEDER_TUBE_ELEV_DEG,
+                    FEEDER_TUBE_ID, FEEDER_TUBE_LENGTH);
+}
+module vac_clean_tube_outer() {
+    front_tube_outer(VAC_CLEAN_TUBE_X, VAC_CLEAN_TUBE_Z,
+                     VAC_CLEAN_TUBE_ELEV_DEG,
+                     VAC_CLEAN_TUBE_OD, VAC_CLEAN_TUBE_LENGTH);
+}
+module vac_clean_tube_bore() {
+    front_tube_bore(VAC_CLEAN_TUBE_X, VAC_CLEAN_TUBE_Z,
+                    VAC_CLEAN_TUBE_ELEV_DEG,
+                    VAC_CLEAN_TUBE_ID, VAC_CLEAN_TUBE_LENGTH);
+}
+
 module seed_pool() {
     difference() {
-        seed_pool_outer_solid();
+        union() {
+            seed_pool_outer_solid();
+            feeder_tube_outer();
+            vac_clean_tube_outer();
+        }
         seed_pool_cavity();
+        feeder_tube_bore();
+        vac_clean_tube_bore();
         disc_envelope_above_floor();
     }
 }

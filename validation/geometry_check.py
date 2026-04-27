@@ -211,33 +211,46 @@ def check_seed_pool(stl_path: Path) -> list[CheckResult]:
         f"is_watertight={mesh.is_watertight}",
     ))
 
-    # Bounding box: 60 × 40 × 20 (X × Y × Z). Slot subtraction may shave
-    # off small chunks of the side walls but the outer extents stay.
+    # Pool BODY footprint: width X=60 still holds (tubes only slightly nudge
+    # via vac tube OD=32 + offset −15 → x_min ≈ −31, +1 mm tolerance).
+    # Y and Z extents now exceed the body — tubes extend in (−Y, +Z) at
+    # 60°/45° elevations. Validate by anchor points, not total extents.
     extents = mesh.extents
-    expected_extents = (PARAMS["SEED_POOL_X"], PARAMS["SEED_POOL_Y"], PARAMS["SEED_POOL_DEPTH"])
-    diffs = [abs(extents[i] - expected_extents[i]) for i in range(3)]
-    bbox_ok = all(d < 1.0 for d in diffs)
     results.append(CheckResult(
-        "bounding_box",
-        bbox_ok,
-        f"got={extents.round(2).tolist()}, expected≈{list(expected_extents)}",
+        "x_extent_with_tubes",
+        abs(extents[0] - PARAMS["SEED_POOL_X"]) < 2.5,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['SEED_POOL_X']} ±2.5 (vac tube nudges by ~1 mm)",
     ))
 
-    # Floor at SEED_POOL_Z_FLOOR, top at SEED_POOL_Z_TOP.
+    # Pool floor still at SEED_POOL_Z_FLOOR (= -37); pool top wall still at
+    # SEED_POOL_Z_TOP (= -17), but mesh z_max now extends higher because the
+    # vac tube reaches +Z. Verify z_min exact and z_max ≥ pool top.
     z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
     results.append(CheckResult(
-        "z_bounds",
-        abs(z_min - PARAMS["SEED_POOL_Z_FLOOR"]) < 0.5
-        and abs(z_max - PARAMS["SEED_POOL_Z_TOP"]) < 0.5,
-        f"z=[{z_min:.2f}, {z_max:.2f}], expected=[{PARAMS['SEED_POOL_Z_FLOOR']}, {PARAMS['SEED_POOL_Z_TOP']}]",
+        "z_floor",
+        abs(z_min - PARAMS["SEED_POOL_Z_FLOOR"]) < 0.5,
+        f"z_min={z_min:.2f}, expected={PARAMS['SEED_POOL_Z_FLOOR']}",
+    ))
+    results.append(CheckResult(
+        "z_top_or_higher",
+        z_max >= PARAMS["SEED_POOL_Z_TOP"] - 0.5,
+        f"z_max={z_max:.2f}, expected ≥ {PARAMS['SEED_POOL_Z_TOP']} (tubes extend higher)",
     ))
 
-    # Centred along disc-bottom Y line.
-    y_center_actual = float((mesh.bounds[0, 1] + mesh.bounds[1, 1]) / 2)
+    # Front face still at y_min = -50 (or further negative due to tubes
+    # extending in -Y); back face still at y_max ≈ -10.
+    y_min, y_max = float(mesh.bounds[0, 1]), float(mesh.bounds[1, 1])
+    y_front = PARAMS["SEED_POOL_Y_CENTER"] - PARAMS["SEED_POOL_Y"] / 2
+    y_back  = PARAMS["SEED_POOL_Y_CENTER"] + PARAMS["SEED_POOL_Y"] / 2
     results.append(CheckResult(
-        "y_centred_on_disc_bottom",
-        abs(y_center_actual - PARAMS["SEED_POOL_Y_CENTER"]) < 0.5,
-        f"y_center={y_center_actual:.2f}, expected={PARAMS['SEED_POOL_Y_CENTER']}",
+        "y_back_face",
+        abs(y_max - y_back) < 0.5,
+        f"y_max={y_max:.2f}, expected≈{y_back}",
+    ))
+    results.append(CheckResult(
+        "y_front_or_further",
+        y_min <= y_front + 0.5,
+        f"y_min={y_min:.2f}, expected ≤ {y_front} (tubes extend in -Y)",
     ))
 
     return results

@@ -82,6 +82,29 @@ SEED_POOL_FILL_Z     = -24;    // approximate seed top when full (~13 mm bed)
 // dip line — like a Monosem V-trough.
 SEED_POOL_BOTTOM_X   = 6;
 
+// --------------------------------------------------------------------------
+// FRONT-FACE TUBE PORTS (2026-04-27) — two angled fittings on the operator-
+// facing front face of the pool (y = -50). One is the FEEDER inlet (operator
+// pours seeds in via this tube, ~60° elevation so seeds slide down by
+// gravity); the other is the VAC-CLEANUP outlet (a shop vac is plugged in
+// at end-of-run to suck the compartment empty, ~45° elevation, larger bore
+// to pass entrained seeds). Both extend OUTWARD (-Y, +Z) from the front
+// face; bores pierce the wall so the pool cavity connects through.
+// --------------------------------------------------------------------------
+FEEDER_TUBE_OD       = 16;     // accommodates Ø6 mm soybean + chute
+FEEDER_TUBE_ID       = 12;
+FEEDER_TUBE_LENGTH   = 50;
+FEEDER_TUBE_ELEV_DEG = 60;     // up from horizontal
+FEEDER_TUBE_X        =  15;    // x-offset on front face
+FEEDER_TUBE_Z        = -22;    // 5 mm below pool top
+
+VAC_CLEAN_TUBE_OD       = 32;  // standard shop-vac fitting
+VAC_CLEAN_TUBE_ID       = 28;
+VAC_CLEAN_TUBE_LENGTH   = 50;
+VAC_CLEAN_TUBE_ELEV_DEG = 45;
+VAC_CLEAN_TUBE_X        = -15;
+VAC_CLEAN_TUBE_Z        = -22;
+
 // ==========================================================================
 // AFSTRIJKER (Phase 3 V5) — singulator blade just past pickup zone.
 // Strips off excess seeds that aren't securely seated in their vacuum hole.

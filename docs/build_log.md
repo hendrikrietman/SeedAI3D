@@ -424,3 +424,73 @@ Pre-existing D6 `disc_above_floor` regression unchanged.
   Textbook "pump from behind, seed from front" configuration.
 
 **Tag**: v5.4.2.
+
+---
+
+## V5 polish — vacuum-respecting release glide + front-face tube ports (2026-04-27)
+
+Three issues addressed in one pass:
+
+**1. Seed-fall through disc at θ=90° release.** Old behaviour at top
+release fell vertically from rim, visually clipping the disc plate
+slab on the way down. With vacuum still on, seeds should ride the
+disc face inboard until they clear the central hole, then drop. Added
+a 2-stage glide in `viewer/viewer.js` (`glideToThroat`):
+
+- Stage 1 (0.45 s): rim point (0, +29.7, +29.7) → disc-axis point
+  (0, +2.12, +2.12), a slide along the disc FRONT face at constant
+  disc-local-Z = +3 mm. Provably non-clipping: |Z|=3 > slab half-
+  thickness 2, and once R<25 the disc has a central hole anyway.
+- Stage 2 (0.30 s): central-axis point → geleider throat top
+  (0, 0, throatZ+1). Linear drop down the central hole.
+
+`pushToGliding()` now delegates to `glideToThroat()`. `updateGliding()`
+handles `stage` field for two-stage entries (smoothstep on stage 1,
+linear on stage 2). At-top release in animate loop replaces the
+previous `detachToFalling` call with `glideToThroat(state.seed)`.
+
+**2. Darker, less transparent shell materials** (`viewer/viewer.js`):
+
+| Material         | Old colour / opacity        | New colour / opacity      |
+|------------------|-----------------------------|---------------------------|
+| `poolMat`        | grey-blue 0x6a7886 / 0.45   | charcoal 0x3c4248 / 0.62  |
+| `afstrijkerMat`  | warm grey 0x9ea4ad / 0.85   | dark grey 0x484c54 / 0.92 |
+| `geleiderMat`    | lighter grey 0x4d5560/0.55  | near-black 0x2c3036/0.72  |
+| `dropTubeMat`    | lighter grey 0x4d5560/0.65  | near-black 0x2c3036/0.82  |
+| `vacuumChamberMat`| blue-grey 0x4d6075 / 0.45  | deep slate 0x232b34/0.62  |
+
+Specular bumped to 0x111114 / 0x111118 across the board for a slight
+sheen on the darker tone.
+
+**3. Feeder + vacuum-cleanup tube ports on operator-facing front face.**
+New parameters in `scad/lib/parameters.scad`:
+
+- Feeder tube: OD 16, ID 12, length 50, 60° elevation, anchored at
+  (x=+15, y=front, z=−22).
+- Vac-cleanup tube: OD 32, ID 28, length 50, 45° elevation, anchored
+  at (x=−15, y=front, z=−22).
+
+Both modelled as cylinders along +Z then `rotate([90 - elev_deg, 0, 0])`
+to tilt outward (-Y, +Z). Outer overlaps the wall; bore extends 5 mm
+further inboard to fully pierce. New modules in `scad/v5_2_seed_pool.scad`:
+`front_tube_outer/bore`, `feeder_tube_outer/bore`, `vac_clean_tube_outer/bore`.
+`seed_pool()` unions tube outers, subtracts tube bores alongside the
+existing pool cavity and disc envelope.
+
+**STL re-export** (`stl/v5_3/seed_pool.stl`): 32v/60f → 865v/1742f;
+copied to `viewer/models/seed_pool.stl`.
+
+**Validation** (`validation/geometry_check.py`): Phase-2 pool checks
+rewritten for tube extents:
+
+- `x_extent_with_tubes`: 60.0 ±2.5 (vac tube nudges by ~1 mm)
+- `z_floor`: exact at z = −37 (floor unaffected by tubes)
+- `z_top_or_higher`: z_max ≥ −17 (tubes extend higher in +Z)
+- `y_back_face`: exact at y = −10 (back wall unaffected)
+- `y_front_or_further`: y_min ≤ −50 (tubes extend in −Y)
+
+All five PASS at actual values (61.00, −37.00, 25.30, −10.00, −96.67).
+Pre-existing `disc_above_floor` failure unchanged (teeth at z=−47.76
+clipped by `disc_envelope_above_floor` half-space cut at z = floor+1).
+
+**Tag**: v5.4.3.

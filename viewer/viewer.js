@@ -134,28 +134,28 @@ const discMat = new THREE.MeshPhongMaterial({
   side: THREE.DoubleSide, clippingPlanes: [],
 });
 const poolMat = new THREE.MeshPhongMaterial({
-  color: 0xb0b8c0, specular: 0x222222, shininess: 18,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.32,
+  color: 0x3c4248, specular: 0x111114, shininess: 22,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.62,
   clippingPlanes: [],
 });
 const afstrijkerMat = new THREE.MeshPhongMaterial({
-  color: 0x808890, specular: 0x222222, shininess: 30,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.85,
+  color: 0x484c54, specular: 0x111114, shininess: 30,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.92,
   clippingPlanes: [],
 });
 const geleiderMat = new THREE.MeshPhongMaterial({
-  color: 0xa8b0bc, specular: 0x222222, shininess: 30,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.40,
+  color: 0x2c3036, specular: 0x111114, shininess: 32,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.72,
   clippingPlanes: [],
 });
 const dropTubeMat = new THREE.MeshPhongMaterial({
-  color: 0xb0b6c0, specular: 0x222222, shininess: 30,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+  color: 0x2c3036, specular: 0x111114, shininess: 32,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.82,
   clippingPlanes: [],
 });
 const vacuumChamberMat = new THREE.MeshPhongMaterial({
-  color: 0x8aa4d4, specular: 0x222244, shininess: 40,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.30,
+  color: 0x232b34, specular: 0x111118, shininess: 40,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.62,
   clippingPlanes: [],
 });
 
@@ -560,21 +560,37 @@ function captureToGliding(item) {
   glidingSeeds.push({ mesh: m, t: 0, dur, p0, p1 });
 }
 
-function pushToGliding(seedMesh) {
-  // Afstrijker 2 push — seed is wiped off the disc directly into the
-  // geleider catch-mouth. Skips free-fall: visualises the redundancy
-  // without ballistic trajectory. Starts at the seed's current world
-  // position (still attached at θ≈95°), routed to the throat with a
-  // brief intermediate arc into the catch-mouth so it visually clears
-  // the disc edge before sliding down.
+function glideToThroat(seedMesh) {
+  // Vacuum-respecting release: instead of free-falling (which clips through
+  // the disc-body slab on the way to the geleider mouth), the seed slides
+  // along the disc-front face from the rim inward to the central hole, then
+  // drops vertically through the central hole into the geleider throat.
+  //
+  //   Phase 1: rim → above central axis. Seed stays at disc-local-Z = +3
+  //            (3 mm above disc face) the whole slide, so it never enters
+  //            the disc-body slab |Z|≤2 in the radial annulus [25,60].
+  //   Phase 2: above central axis → throat. Vertical drop through the
+  //            central 50 mm hole — clear air all the way down.
+  //
+  // Used for both the natural θ=90° release and the afstrijker-2 push.
+  // The geleider catch-mouth is bypassed in vacuum-on mode (the seed is
+  // routed straight into the central drop). The mouth still catches free-
+  // falling seeds when vacuum is off mid-cycle (see updateFalling).
   seedMesh.material = glidingSeedMat;
   glidingGroup.attach(seedMesh);
-  const dur = 0.55;
   const p0 = seedMesh.position.clone();
-  const p1 = new THREE.Vector3(0, 0, GELEIDER.throatZ + 1);
+  // Phase-1 endpoint: disc-local (R=0, Z=+3) = +3·FRONT_NORMAL in world.
+  const pMid = new THREE.Vector3(0, FRONT_NORMAL.y * 3, FRONT_NORMAL.z * 3);
+  const pEnd = new THREE.Vector3(0, 0, GELEIDER.throatZ + 1);
   savedCount++;
-  glidingSeeds.push({ mesh: seedMesh, t: 0, dur, p0, p1 });
+  glidingSeeds.push({
+    mesh: seedMesh, t: 0,
+    dur1: 0.45, dur2: 0.30, stage: 1,
+    p0, pMid, pEnd,
+  });
 }
+
+function pushToGliding(seedMesh) { glideToThroat(seedMesh); }
 
 function captureToExiting(g) {
   const m = g.mesh;
@@ -622,14 +638,30 @@ function updateGliding(dt) {
   for (let i = glidingSeeds.length - 1; i >= 0; i--) {
     const g = glidingSeeds[i];
     g.t += dt;
-    const u = Math.min(g.t / g.dur, 1);
-    // Ease curve: in y/x linearly, in z follow a slight arc so the path
-    // feels like a slide. Bezier-ish: midpoint dipped a touch.
-    const eased = u * u * (3 - 2 * u);   // smoothstep
-    g.mesh.position.lerpVectors(g.p0, g.p1, eased);
-    if (u >= 1) {
-      glidingSeeds.splice(i, 1);
-      captureToExiting(g);
+    if (g.stage !== undefined) {
+      // Two-stage vacuum-respecting glide: rim slide, then central drop.
+      if (g.stage === 1) {
+        const u = Math.min(g.t / g.dur1, 1);
+        const eased = u * u * (3 - 2 * u);
+        g.mesh.position.lerpVectors(g.p0, g.pMid, eased);
+        if (u >= 1) { g.stage = 2; g.t = 0; }
+      } else {
+        const u = Math.min(g.t / g.dur2, 1);
+        g.mesh.position.lerpVectors(g.pMid, g.pEnd, u);
+        if (u >= 1) {
+          glidingSeeds.splice(i, 1);
+          captureToExiting({ mesh: g.mesh });
+        }
+      }
+    } else {
+      // Legacy single-stage glide (geleider catch from free-fall).
+      const u = Math.min(g.t / g.dur, 1);
+      const eased = u * u * (3 - 2 * u);
+      g.mesh.position.lerpVectors(g.p0, g.p1, eased);
+      if (u >= 1) {
+        glidingSeeds.splice(i, 1);
+        captureToExiting(g);
+      }
     }
   }
 }
@@ -814,10 +846,11 @@ function animate() {
         }
       }
 
-      // Release at θ=90°.
+      // Release at θ=90°. Vacuum is on (vacuum<5 path handled above), so
+      // route the seed via the vacuum-respecting glide rather than free-
+      // falling through the disc-body slab. See glideToThroat() comments.
       if (holeIsAt(n, rotationAngle, RELEASE_THETA, tol)) {
-        detachToFalling(state.seed, omega,
-          state.seed.position.x, state.seed.position.y, state.seed.position.z);
+        glideToThroat(state.seed);
         holeState[n] = null;
         continue;
       }
