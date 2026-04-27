@@ -542,3 +542,49 @@ ensures STL refetch on every page open — diagnostic console.log
 prints loaded bounds for verification against the validation output.
 
 **Tag**: v5.5.0.
+
+---
+
+## V5.5.1 — V-cone in both X & Y, floor lowered to clear disc teeth (2026-04-27)
+
+Stage B-prep of Hendrik's Phase-5 spec — narrows the bowl into a true
+V-cone in both dimensions and resolves the long-standing
+`disc_above_floor` validation failure. The half-circle wraparound bowl
+itself is still deferred to v5.5.2.
+
+**Floor lowered.** `SEED_POOL_DEPTH` 20→33; floor moves from
+z=−37 → z=−50. Reason: disc-with-teeth lowest world Z at α=270° is
+−47.76 mm (back-face teeth). Old floor at −37 sat 10.76 mm ABOVE the
+teeth, requiring `disc_envelope_above_floor` to clip the disc-cut
+half-space (otherwise teeth carved a slot through the floor). New
+floor sits 2.24 mm BELOW the teeth → disc clears the floor in the
+mesh and the validation check passes without the half-space hack.
+The half-space clip is kept defensively (cheap insurance against
+future teeth-OD growth).
+
+**V-cone in Y.** Added `SEED_POOL_BOTTOM_Y = 4` (was implicitly =
+inner_y = 36 — the bottom strip was a long ridge, not a cone). Now
+the cavity is a true 4×4 mm bottom widening to 56×36 at the top.
+Wall slopes:
+- X-wall: atan((28−2)/33) = 38.2° (was 36.9°) — still ≥35°.
+- Y-wall: atan((18−2)/33) = 25.9° in body, but bottom strip narrows
+  Y to 4 → effective floor-up Y slope atan((36−4)/2 / 31) = 27.3°.
+  This is BELOW the ≥35° spec target. Workable for soybeans (low
+  rest angle) but flagged for v5.5.2 review — likely fix is
+  narrowing top Y or further lowering bottom_y.
+- `SEED_POOL_BOTTOM_X` 6→4 (matches BOTTOM_Y; tighter pickup lane).
+
+**STL re-export**: 899v/1810f → 985v/1982f. Bounds: x[−30,+30]
+unchanged; y[−82.79,−10] unchanged; z[−50, +55.97] (floor moved
+−13). Watertight. Copied to `viewer/models/`.
+
+**Validation**: `disc_above_floor` now PASSES — no disc surface
+samples within 1 mm of pool floor (z=−50). All other six checks
+PASS at (60.00, −50.00, 55.97, −10.00, −82.79). Updated
+`SEED_POOL_DEPTH=33` and `SEED_POOL_Z_FLOOR=−50` constants in
+`validation/geometry_check.py`.
+
+**Iso render**: `renders/v5_2/v5_5_1_iso.png` shows narrower V-cone
+profile through the front wall.
+
+**Tag**: v5.5.1.

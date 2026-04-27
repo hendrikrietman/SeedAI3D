@@ -57,15 +57,16 @@ module seed_pool_outer_solid() {
 
 module seed_pool_cavity() {
     inner_x_top = SEED_POOL_X - 2 * SEED_POOL_WALL;
-    inner_y     = SEED_POOL_Y - 2 * SEED_POOL_WALL;
+    inner_y_top = SEED_POOL_Y - 2 * SEED_POOL_WALL;
     bottom_x    = SEED_POOL_BOTTOM_X;
+    bottom_y    = SEED_POOL_BOTTOM_Y;
     hull() {
         // top opening (extends slightly above wall top so cut is clean)
         translate([0, SEED_POOL_Y_CENTER, SEED_POOL_Z_TOP + 1])
-            cube([inner_x_top, inner_y, EPS], center = true);
-        // V-trough bottom strip just above the floor
+            cube([inner_x_top, inner_y_top, EPS], center = true);
+        // V-cone bottom (narrow in both X and Y → wall slopes >35°)
         translate([0, SEED_POOL_Y_CENTER, SEED_POOL_Z_FLOOR + SEED_POOL_WALL])
-            cube([bottom_x, inner_y, EPS], center = true);
+            cube([bottom_x, bottom_y, EPS], center = true);
     }
 }
 

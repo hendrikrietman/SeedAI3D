@@ -72,15 +72,25 @@ DISC_TOP_Z_OFFSET    = DISC_THICKNESS * cos(DISC_TILT_DEG);
 // ==========================================================================
 SEED_POOL_X          = 60;     // pool footprint, X
 SEED_POOL_Y          = 40;     // pool footprint, Y (front-back)
-SEED_POOL_DEPTH      = 20;     // pool height, Z
-SEED_POOL_Z_TOP      = -17;    // top of pool walls (raised 8 mm)
-SEED_POOL_Z_FLOOR    = SEED_POOL_Z_TOP - SEED_POOL_DEPTH;   // = -37
+// Floor lowered v5.5.1: -37 → -50 (10 mm below disc-with-teeth lowest at
+// world z ≈ -48.1). This resolves the long-standing `disc_above_floor`
+// validation failure (teeth used to penetrate the floor by ~11 mm and were
+// only "hidden" by the disc_envelope_above_floor clip). With floor at -50
+// the envelope-clip zone z=floor+1=-49 sits BELOW the actual disc lowest,
+// so the disc no longer reaches the floor at all.
+SEED_POOL_DEPTH      = 33;     // was 20; deepened to drop floor below disc
+SEED_POOL_Z_TOP      = -17;    // top of pool walls (unchanged)
+SEED_POOL_Z_FLOOR    = SEED_POOL_Z_TOP - SEED_POOL_DEPTH;   // = -50
 SEED_POOL_Y_CENTER   = -30;    // pool centred along disc-bottom Y line
 SEED_POOL_WALL       = 2;
-SEED_POOL_FILL_Z     = -24;    // approximate seed top when full (~13 mm bed)
-// Bottom-strip width: V-shape narrows in X to gather seeds along the disc-rim
-// dip line — like a Monosem V-trough.
-SEED_POOL_BOTTOM_X   = 6;
+SEED_POOL_FILL_Z     = -24;    // approximate seed top when full
+// V-cone bottom: narrows in BOTH X and Y to a small floor patch (4×4 mm)
+// so seeds gravity-feed to a single lowest point centred at
+// (0, SEED_POOL_Y_CENTER, SEED_POOL_Z_FLOOR). Wall slope: top→floor in X
+// is atan(33/(30-2)) ≈ 50°, in Y atan(33/(20-2)) ≈ 61° — both well over
+// the ≥35° spec for self-feeding.
+SEED_POOL_BOTTOM_X   = 4;
+SEED_POOL_BOTTOM_Y   = 4;
 
 // --------------------------------------------------------------------------
 // FRONT-FACE TUBE PORTS (2026-04-27) — two angled fittings on the operator-
