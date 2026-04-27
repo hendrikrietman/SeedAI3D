@@ -25,7 +25,7 @@ PARAMS = {
     "CENTRAL_HOLE_DIA": 50.0,
     "PICKUP_HOLE_COUNT": 40,
     "PICKUP_HOLE_RADIUS": 42.0,
-    "PICKUP_HOLE_DIA": 2.5,
+    "PICKUP_HOLE_DIA": 4.0,
     "TOOTH_COUNT": 60,
     "DISC_TILT_DEG": 45.0,
     "SEED_POOL_X": 60.0,
@@ -58,6 +58,14 @@ PARAMS = {
     "DROP_TUBE_ID": 24.0,
     "DROP_TUBE_Z_TOP": -6.0,
     "DROP_TUBE_Z_BOTTOM": -52.0,
+    "VAC_CHAMBER_R_IN": 30.0,
+    "VAC_CHAMBER_R_OUT": 50.0,
+    "VAC_CHAMBER_DEPTH": 8.0,
+    "VAC_CHAMBER_WALL": 2.0,
+    "VAC_NIPPLE_DIA": 12.0,
+    "VAC_NIPPLE_LENGTH": 30.0,
+    "VAC_SECTOR_START_DEG": 90.0,
+    "VAC_SECTOR_END_DEG": 270.0,
 }
 
 
@@ -429,6 +437,43 @@ def check_drop_tube(stl_path: Path) -> list[CheckResult]:
     return results
 
 
+def check_vacuum_chamber(stl_path: Path) -> list[CheckResult]:
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # Sector occupies x_world ≤ 0 (after disc tilt is applied; tilt is around
+    # X so x is unaffected). The chamber's body sits in x ∈ [-R_out, 0].
+    x_min, x_max = float(mesh.bounds[0, 0]), float(mesh.bounds[1, 0])
+    results.append(CheckResult(
+        "sector_x_range",
+        abs(x_min + PARAMS["VAC_CHAMBER_R_OUT"]) < 1.0 and x_max < 1.0,
+        f"x=[{x_min:.2f},{x_max:.2f}], expected≈"
+        f"[-{PARAMS['VAC_CHAMBER_R_OUT']}, 0]",
+    ))
+
+    # Centroid sits on +disc-back side: y_world ≤ 0, z_world ≥ 0 (the back
+    # half-space relative to the disc plane). With the chamber asymmetric
+    # in -X, centroid x is well into negative.
+    cx, cy, cz = mesh.centroid
+    results.append(CheckResult(
+        "centroid_on_back_side",
+        cx < -10.0 and cy < 0.0 and cz > 0.0,
+        f"centroid=({cx:.2f},{cy:.2f},{cz:.2f}); expected x<<0, y<0, z>0",
+    ))
+    return results
+
+
 def main() -> int:
     print("=== Phase 1: disc ===")
     disc_stl_v1 = ROOT / "stl" / "v4_1" / "disc.stl"
@@ -501,9 +546,17 @@ def main() -> int:
     for r in drop_tube_results:
         print(r)
 
+    print()
+    print("=== Phase 4 V5: vacuum chamber ===")
+    vac_stl = ROOT / "stl" / "v5_4" / "vacuum_chamber.stl"
+    vac_results = check_vacuum_chamber(vac_stl)
+    for r in vac_results:
+        print(r)
+
     all_results = (disc_results + pool_results + clearance_results
                    + afstrijker_results + afstrijker2_results
-                   + geleider_results + drop_tube_results)
+                   + geleider_results + drop_tube_results
+                   + vac_results)
     failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 

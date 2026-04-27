@@ -220,3 +220,80 @@ inside the pool volume, sitting on the disc front face. At θ=90° they land
 at (0, +33.23, +26.16) — directly above the geleider catch-mouth (mouth
 y∈[20,40], z=20 to z=22), so the seed enters the catch zone naturally as
 gravity pulls it down.
+
+## Phase 4 V5 — Vacuum chamber + 4 mm holes + corrected seed mechanics (2026-04-27)
+
+This phase is the LAST visual fix before STL export and PLA proof-of-concept
+print. Three bundled changes:
+
+**Change 1 — Pickup hole Ø 2.5 mm → Ø 4.0 mm.**
+Soybean Ø ≈ 6 mm. The original 2.5 mm was a design holdover; the seed
+only needs to seat against the disc-front around the hole, not pass
+through. Increased to 4.0 mm: still strictly less than the seed diameter
+(seed cannot escape forward through the hole), but with 60% more open
+suction area per hole — better grip, more forgiving alignment. Updated
+parameter `PICKUP_HOLE_DIA = 4.0` with comment locking the rationale.
+Re-exported `disc.stl` (5928 vertices, volume 39 308 mm³).
+
+**Change 2 — Attached-seed offset = SEED_RADIUS, not 5 mm.**
+The previous viewer offset was 5 mm — picked when the conceptual model
+was "seed centroid sits 5 mm in front of the hole". The physical model
+is different: the seed-bottom *touches* the disc-front face, centred on
+the hole. So the centre-to-disc offset is exactly SEED_RADIUS = 3 mm.
+Changed `SEED_OFFSET = 5` (removed) → `FRONT_NORMAL.* * SEED_RADIUS` in
+the three coordinate updates. Visually: attached seed now sits flush
+against the disc; cross-section confirms seed-bottom on disc plane.
+
+**Change 3 — Vacuum chamber on disc-back face.**
+The missing structural element. Without a chamber, the vacuum has no
+enclosure; pickup-holes inside the chamber sector experience suction,
+holes outside it do not. The chamber is an annular sector hollow shell:
+
+- Radii: `R_in = 30`, `R_out = 50` (pickup-hole circle R=42 sits inside).
+- Depth: 8 mm along disc-back-normal (pre-tilt +Z).
+- Sector: disc-local θ ∈ [90°, 270°] going through θ=180°, i.e. the
+  half-plane `x_local ≤ 0`.
+- Wall thickness: 2 mm; back plate, two end-walls, inner & outer
+  cylinder walls. Open against the disc-back face (the disc itself
+  forms the front cover — implicit O-ring grooves at R=30 and R=50).
+- Hose nipple Ø 12 × 30 mm at the centre of the arc (θ=180°, R=40),
+  pointing along disc-back-normal. After the SCAD `rotate([45,0,0])`,
+  the nipple's far end ends up around world (-40, -25.5, +25.5).
+
+New SCAD file: `scad/v5_4_vacuum_chamber.scad`. New parameters block in
+`parameters.scad`: `VAC_CHAMBER_R_IN/R_OUT/DEPTH/WALL`,
+`VAC_NIPPLE_DIA/LENGTH`, `VAC_SECTOR_START_DEG/END_DEG`. Exported
+`stl/v5_4/vacuum_chamber.stl`: 392 vertices, 780 faces, watertight.
+
+**Validation.** New `check_vacuum_chamber()` in `geometry_check.py` —
+all PASS:
+- `file_exists`: 392 vertices, 780 faces.
+- `watertight`: True.
+- `sector_x_range`: x ∈ [−50, 0] (chamber occupies the back-arc only).
+- `centroid_on_back_side`: (−26.67, −6.67, +6.67) — x<<0 confirms sector,
+  y<0, z>0 confirm the chamber is behind the tilted disc.
+
+**Viewer integration.**
+- New `vacuumChamberMat` material: blue-grey, opacity 0.30 — semi-
+  transparent so attached seeds remain visible behind the chamber walls.
+- Loaded via STLLoader; UI toggle "Vacuum-kamer (transparant)" controls
+  visibility. Cross-section clipping plane added to the chamber material.
+- Per-hole vacuum-glow markers: 40 small additive-blended blue spheres,
+  one per pickup hole. Each frame, marker visibility = (vacuum > 5 AND
+  hole's world x ≤ 0). Visualises which holes are *currently* in the
+  chamber sector and active. UI toggle "Vacuum-glow" controls the glow.
+- Vacuum-off behaviour: with the slider at 0%, every attached seed is
+  immediately detached to falling at zero tangential velocity (drops
+  straight down, almost certainly missed). At 5%-100% pickup proceeds
+  normally — the binary cutoff at 5% is arbitrary, just there to model
+  "vacuum on / vacuum off" without a smooth retention curve.
+
+**Re-validation.** All component checks PASS, including the new chamber
+checks. The pre-existing `disc_above_floor` D6 regression is unchanged
+in nature (now reads −10.45 mm with the 4 mm-hole disc; was −10.82 mm
+before). Decision still pending: lower pool floor to z = −50 OR strip
+teeth until Phase 6.
+
+**Tag:** v5.4. Phase 4 closes the V5 functional viewer. Next:
+print preparation — production STL export, PLA proof-of-concept print
+(disc + pool + afstrijkers + geleider + drop-tube + vacuum chamber).

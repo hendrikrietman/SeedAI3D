@@ -15,7 +15,7 @@ CENTRAL_HOLE_DIA     = 50;    // central seed-drop hole
 // ==========================================================================
 PICKUP_HOLE_COUNT    = 40;
 PICKUP_HOLE_RADIUS   = 42;    // radial distance from disc centre
-PICKUP_HOLE_DIA      = 2.5;
+PICKUP_HOLE_DIA      = 4.0;   // 4 mm hole < 6 mm soybean → seed cannot pass through
 
 // ==========================================================================
 // TEETH (rim of disc, engages 20-tooth pinion in Phase 6)
@@ -140,6 +140,21 @@ DROP_TUBE_OD       = 30;
 DROP_TUBE_ID       = 24;
 DROP_TUBE_Z_TOP    = GELEIDER_THROAT_Z;     // joins geleider throat (z=-6)
 DROP_TUBE_Z_BOTTOM = -52;                    // exits below pool floor (-45)
+
+// ==========================================================================
+// VACUUM CHAMBER (Phase 4 V5) — annular sector sealed against disc back face
+// covering pickup-to-release zone (θ ∈ [90°, 270°] going through θ=180°,
+// i.e. world x_local ≤ 0). Without a chamber, the vacuum has nowhere to
+// pull from; this is the missing structural element behind the disc.
+// ==========================================================================
+VAC_CHAMBER_R_IN     = 30;    // just inside the pickup-hole circle (R=42)
+VAC_CHAMBER_R_OUT    = 50;    // just outside the pickup-hole circle
+VAC_CHAMBER_DEPTH    = 8;     // back from disc-back face
+VAC_CHAMBER_WALL     = 2;     // shell wall thickness (chamber is hollow inside)
+VAC_NIPPLE_DIA       = 12;    // Ø12 hose connection
+VAC_NIPPLE_LENGTH    = 30;    // sticks out 30 mm along disc-back-normal
+VAC_SECTOR_START_DEG = 90;    // sector angular range (disc-local), inclusive
+VAC_SECTOR_END_DEG   = 270;   // sector covers [90°, 270°] going through 180°
 
 // ==========================================================================
 // HOUSING (used in later phases, declared here for reference)

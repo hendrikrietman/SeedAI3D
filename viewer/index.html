@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PROTISEM V5 — Phase 3 (afstrijker + geleider + lifecycle)</title>
+  <title>PROTISEM V5 — Phase 4 (vacuum chamber + 4 mm holes)</title>
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     {
@@ -18,8 +18,8 @@
   <div id="canvas-host"></div>
 
   <section id="controls" class="panel">
-    <h1>PROTISEM V5 · Phase 3</h1>
-    <p class="sub">Afstrijker singulator + geleider catch-chute + drop-tube</p>
+    <h1>PROTISEM V5 · Phase 4</h1>
+    <p class="sub">Vacuum chamber + 4 mm pickup holes + corrected seed mechanics</p>
 
     <div class="row">
       <label for="rpm">Disc RPM</label>
@@ -80,6 +80,18 @@
         Drop-tube
       </label>
     </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-vacuum-chamber" type="checkbox" checked />
+        Vacuum-kamer (transparant)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-vacuum-glow" type="checkbox" checked />
+        Vacuum-glow (active hole markers)
+      </label>
+    </div>
 
     <p class="note">Drag to orbit · scroll to zoom · right-drag to pan.</p>
   </section>
@@ -99,8 +111,14 @@
     <p class="note">
       Pickup θ=270° (in pool) → travel 180° on disc-front face → release θ=90°
       → free-fall into geleider mouth → glide to throat → drop-tube → sown.<br>
-      Singulator (afstrijker) at θ=250° drops 5% of attached seeds back to
-      the pool — visualises the &ldquo;one-seed-per-hole&rdquo; function.<br>
+      Vacuum-kamer (R 30–50, depth 8, 180° sector through θ=180°) seals
+      against the disc-back face and provides suction. Holes outside the
+      chamber sector (world x &gt; 0) lose their grip — but in this model
+      release is timed at θ=90°, so seeds remain attached for the full
+      half-rotation. Setting Vacuum slider to 0 immediately drops every
+      attached seed.<br>
+      Pickup holes Ø 4 mm &lt; soybean Ø 6 mm: the seed seats against the
+      disc-front around the hole, it cannot pass through.<br>
       Pool refills automatically when it dips below 12 seeds so the
       animation never runs dry.
     </p>

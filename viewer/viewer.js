@@ -108,13 +108,19 @@ const GELEIDER = {
 // Drop tube
 const DROP_TUBE = { od: 30, id: 24, zTop: -6, zBottom: -52 };
 
+// Vacuum chamber sector — disc-local θ ∈ [90°, 270°] which maps to world
+// x ≤ 0 (chamber sector covers the back-arc through θ=180°). A pickup hole
+// is "in the vacuum sector" when its world x ≤ 0.
+const VAC_SECTOR_X_MAX = 0;
+
 // Singulator + release-zone pusher
 const AFSTRIJKER_SLIP_PROB  = 0.05;
 const AFSTRIJKER2_PUSH_PROB = 0.10;
 
-// Seed visual offset along disc-front normal so spheres float in front of
-// the disc surface rather than embedded in it.
-const SEED_OFFSET = 5;
+// Seed offset = SEED_RADIUS so the seed's near pole touches the disc-front
+// surface centred on the pickup hole. Hole Ø=4 mm < seed Ø=6 mm, so the
+// seed rests against the disc face around the hole and cannot pass through.
+// Defined further down once SEED_RADIUS is in scope.
 
 // ============================================================================
 //  Materials
@@ -143,6 +149,11 @@ const geleiderMat = new THREE.MeshPhongMaterial({
 const dropTubeMat = new THREE.MeshPhongMaterial({
   color: 0xb0b6c0, specular: 0x222222, shininess: 30,
   side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+  clippingPlanes: [],
+});
+const vacuumChamberMat = new THREE.MeshPhongMaterial({
+  color: 0x8aa4d4, specular: 0x222244, shininess: 40,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.30,
   clippingPlanes: [],
 });
 
@@ -177,6 +188,28 @@ const markerGroup = new THREE.Group();
 }
 scene.add(markerGroup);
 
+// ----- Per-hole vacuum-glow markers -----
+// One small additive blue sphere per pickup hole. Each frame we hide/show
+// based on whether the hole's current world position lies inside the
+// vacuum sector (x ≤ 0) AND vacuum is on. Visualises which holes are
+// currently "active" pickups.
+const holeGlowGroup = new THREE.Group();
+scene.add(holeGlowGroup);
+const holeGlowMeshes = [];
+{
+  const glowGeom = new THREE.SphereGeometry(2.0, 12, 8);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0x66bbff, transparent: true, opacity: 0.75,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  for (let n = 0; n < N_HOLES; n++) {
+    const m = new THREE.Mesh(glowGeom, glowMat);
+    m.visible = false;
+    holeGlowGroup.add(m);
+    holeGlowMeshes.push(m);
+  }
+}
+
 // ============================================================================
 //  STL load — disc, pool, afstrijker, geleider, drop_tube
 // ============================================================================
@@ -185,6 +218,7 @@ let afstrijkerMesh = null;
 let afstrijker2Mesh = null;
 let geleiderMesh = null;
 let dropTubeMesh = null;
+let vacuumChamberMesh = null;
 const loader = new STLLoader();
 
 function loadStl(path, mat, onMesh) {
@@ -202,6 +236,7 @@ loadStl('./models/afstrijker.stl',  afstrijkerMat, (m) => { afstrijkerMesh  = m;
 loadStl('./models/afstrijker2.stl', afstrijkerMat, (m) => { afstrijker2Mesh = m; });
 loadStl('./models/geleider.stl',   geleiderMat,    (m) => { geleiderMesh = m; });
 loadStl('./models/drop_tube.stl',  dropTubeMat,    (m) => { dropTubeMesh = m; });
+loadStl('./models/vacuum_chamber.stl', vacuumChamberMat, (m) => { vacuumChamberMesh = m; });
 
 // ============================================================================
 //  Pool fill — visible seed pile, with refill so the animation never starves
@@ -467,6 +502,8 @@ const afstrijkerInput  = document.getElementById('show-afstrijker');
 const afstrijker2Input = document.getElementById('show-afstrijker2');
 const geleiderInput    = document.getElementById('show-geleider');
 const dropTubeInput    = document.getElementById('show-drop-tube');
+const vacChamberInput  = document.getElementById('show-vacuum-chamber');
+const vacGlowInput     = document.getElementById('show-vacuum-glow');
 
 const angleEl    = document.getElementById('info-angle');
 const poolEl     = document.getElementById('info-pool');
@@ -494,7 +531,8 @@ vacuumInput.addEventListener('input', () => {
 });
 csInput.addEventListener('change', () => {
   const planes = csInput.checked ? [clipPlane] : [];
-  for (const m of [discMat, poolMat, afstrijkerMat, geleiderMat, dropTubeMat]) {
+  for (const m of [discMat, poolMat, afstrijkerMat, geleiderMat, dropTubeMat,
+                   vacuumChamberMat]) {
     m.clippingPlanes = planes;
     m.needsUpdate = true;
   }
@@ -516,6 +554,12 @@ geleiderInput.addEventListener('change', () => {
 });
 dropTubeInput.addEventListener('change', () => {
   if (dropTubeMesh) dropTubeMesh.visible = dropTubeInput.checked;
+});
+vacChamberInput.addEventListener('change', () => {
+  if (vacuumChamberMesh) vacuumChamberMesh.visible = vacChamberInput.checked;
+});
+vacGlowInput.addEventListener('change', () => {
+  holeGlowGroup.visible = vacGlowInput.checked;
 });
 
 // ----- resize -----
@@ -551,13 +595,25 @@ function animate() {
 
     if (state) {
       // Update attached-seed position to ride the rotating hole.
+      // Offset = SEED_RADIUS → seed near pole rests on disc-front surface
+      // centred on the (4 mm) hole. Seed Ø=6 mm > hole Ø=4 mm: cannot pass
+      // through.
       const wp = holeWorldPosition(n, rotationAngle);
       state.seed.position.set(
-        wp.x + FRONT_NORMAL.x * SEED_OFFSET,
-        wp.y + FRONT_NORMAL.y * SEED_OFFSET,
-        wp.z + FRONT_NORMAL.z * SEED_OFFSET,
+        wp.x + FRONT_NORMAL.x * SEED_RADIUS,
+        wp.y + FRONT_NORMAL.y * SEED_RADIUS,
+        wp.z + FRONT_NORMAL.z * SEED_RADIUS,
       );
       verifyFrontNormalOnce(wp, state.seed.position);
+
+      // Vacuum off → seed drops immediately (no tangential velocity).
+      // Most likely misses the geleider; counted as missed.
+      if (vacuum < 5) {
+        detachToFalling(state.seed, 0,
+          state.seed.position.x, state.seed.position.y, state.seed.position.z);
+        holeState[n] = null;
+        continue;
+      }
 
       // Afstrijker singulator effect — once per pass.
       if (!state.sawAfstrijker
@@ -610,6 +666,21 @@ function animate() {
           skippedCount++;
         }
       }
+    }
+  }
+
+  // Per-hole vacuum glow — visible when hole is in the chamber sector
+  // (world x ≤ 0) AND vacuum is on. Position rides the rotating hole.
+  const glowVisible = vacuum > 5;
+  for (let n = 0; n < N_HOLES; n++) {
+    const wp = holeWorldPosition(n, rotationAngle);
+    const inSector = wp.x <= VAC_SECTOR_X_MAX;
+    const m = holeGlowMeshes[n];
+    if (glowVisible && inSector) {
+      m.position.copy(wp);
+      m.visible = true;
+    } else {
+      m.visible = false;
     }
   }
 
