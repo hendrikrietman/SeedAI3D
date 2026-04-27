@@ -1,0 +1,11 @@
+# Three.js source-of-truth lives in viewer/vendor/, not node_modules.
+viewer/node_modules/
+viewer/package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor cruft
+.DS_Store
+*.swp

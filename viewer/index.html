@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTISEM V4 — Phase 1 (parametric disc)</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three":          "./vendor/three.module.js",
+        "three/addons/":  "./vendor/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-host"></div>
+
+  <section id="controls" class="panel">
+    <h1>PROTISEM V4 · Phase 1</h1>
+    <div class="row">
+      <label for="rpm">Rotation</label>
+      <input id="rpm" type="range" min="0" max="30" step="0.5" value="5" />
+      <span class="value" id="rpm-value">5.0 rpm</span>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="cross-section" type="checkbox" />
+        Cross-section (cut +Y half)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-markers" type="checkbox" checked />
+        Show pickup/release markers
+      </label>
+    </div>
+    <p class="note">Drag to orbit · scroll to zoom · right-drag to pan.</p>
+  </section>
+
+  <section id="info" class="panel">
+    <h1>State</h1>
+    <dl>
+      <dt>Rotation angle</dt><dd id="info-angle">0.0°</dd>
+      <dt>Disc tilt</dt>     <dd>45.0°</dd>
+      <dt>Disc OD</dt>       <dd>132 mm</dd>
+      <dt>Pickup holes</dt>  <dd>40 × Ø2.5 @ R42</dd>
+      <dt>Central hole</dt>  <dd>Ø50</dd>
+      <dt>Teeth</dt>         <dd>60, modulus 1.5</dd>
+    </dl>
+    <p class="note">Pickup zone (red) at (0, 29.7, 29.7) mm.<br>Release (orange) at (0, −29.7, −29.7) mm.</p>
+  </section>
+
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>
