@@ -211,15 +211,16 @@ def check_seed_pool(stl_path: Path) -> list[CheckResult]:
         f"is_watertight={mesh.is_watertight}",
     ))
 
-    # Pool BODY footprint: width X=60 still holds (tubes only slightly nudge
-    # via vac tube OD=32 + offset −15 → x_min ≈ −31, +1 mm tolerance).
-    # Y and Z extents now exceed the body — tubes extend in (−Y, +Z) at
-    # 60°/45° elevations. Validate by anchor points, not total extents.
+    # Pool BODY footprint: width X=60 still holds (feeder at x=+15 OD18 stays
+    # within the +30 wall; vac tube TOP-mounted at x=0, no x extension).
+    # Y and Z extents now exceed the body — feeder extends in (−Y,+Z) at 60°,
+    # vac extends in (−Y,+Z) at 80° (near-vertical from top). Validate by
+    # anchor points, not total extents.
     extents = mesh.extents
     results.append(CheckResult(
         "x_extent_with_tubes",
-        abs(extents[0] - PARAMS["SEED_POOL_X"]) < 2.5,
-        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['SEED_POOL_X']} ±2.5 (vac tube nudges by ~1 mm)",
+        abs(extents[0] - PARAMS["SEED_POOL_X"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['SEED_POOL_X']} ±1.0",
     ))
 
     # Pool floor still at SEED_POOL_Z_FLOOR (= -37); pool top wall still at

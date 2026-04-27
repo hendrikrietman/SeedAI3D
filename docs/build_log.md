@@ -494,3 +494,51 @@ Pre-existing `disc_above_floor` failure unchanged (teeth at z=−47.76
 clipped by `disc_envelope_above_floor` half-space cut at z = floor+1).
 
 **Tag**: v5.4.3.
+
+---
+
+## V5.5.0 — wider feeder + vac tube relocated to top, near-vertical (2026-04-27)
+
+Stage A of Hendrik's Phase-5 spec. Stage B (half-circle recovery bowl
+that wraps the disc 180° front-side) is deferred to v5.5.1 pending
+review of this stage.
+
+**Feeder tube — widened.** OD 16→18, ID 12→14. Bigger bore reduces
+bridging risk for soybeans (Ø~6 mm). Same anchor (15, −50, −22),
+same 60° elevation. Outer extent unchanged in X (still within +30
+wall), nudges further in −Y/−Z (heavier tilt-cone footprint).
+
+**Vac-cleanup tube — relocated.** Was: front-mount at (−15, −50, −22),
+45° elevation, OD32/ID28. Hendrik's revised intent: vacuum mouth
+"basically nearly inside the hopper" so suction lifts pool seeds
+straight up, not pulling them sideways through a wall. Now:
+
+- Anchor: mouth INSIDE pool at (0, −42, −30) — 7 mm above floor, on
+  seed-side of disc plane (eq=+8.5 mm clearance from disc body slab).
+- Elevation: 80° from horizontal (10° off vertical).
+- Tilt direction: −Y from vertical → upper end is on operator side,
+  hose attach reachable without fouling disc upper-half.
+- OD/ID: 26/22 (matches standard Ø22 shop-vac hose + 2 mm wall).
+- Length: 25 mm inside pool (mouth → top wall pierce) + 60 mm outside
+  (hose attach span).
+
+New `vac_clean_tube_outer/bore` modules in `scad/v5_2_seed_pool.scad`
+no longer use `front_tube_*` helpers — they place the cylinder at
+the mouth and rotate the whole thing by `90 - elev` (= 10°) about X.
+
+**STL re-export** (`stl/v5_2/seed_pool.stl`): 865v/1742f → 899v/1810f.
+Bounds: x[−30, +30] (was [−31, +30]); y[−82.79, −10] (was [−96.67,
+−10]); z[−37, +55.97] (was [−37, +25.30]). Watertight. Copied to
+`viewer/models/`.
+
+**Validation** (`validation/geometry_check.py`): tightened
+`x_extent_with_tubes` tolerance from ±2.5 to ±1.0 (vac tube no
+longer pushes x_min past −30). Other four pool checks unchanged.
+All five PASS at (60.00, −37.00, 55.97, −10.00, −82.79).
+Pre-existing `disc_above_floor` failure unchanged.
+
+**Cache-bust** in `viewer/viewer.js` (`?v=Date.now()` per page load)
+ensures STL refetch on every page open — diagnostic console.log
+prints loaded bounds for verification against the validation output.
+
+**Tag**: v5.5.0.

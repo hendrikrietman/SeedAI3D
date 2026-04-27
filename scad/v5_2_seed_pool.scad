@@ -129,15 +129,31 @@ module feeder_tube_bore() {
                     FEEDER_TUBE_ELEV_DEG,
                     FEEDER_TUBE_ID, FEEDER_TUBE_LENGTH);
 }
+// =====================================================================
+//  Vac-cleanup tube — TOP-mount, near-vertical (80° elev). Mouth INSIDE
+//  the pool at MOUTH_Z (= floor + 7 mm); tube extends DOWN to mouth and
+//  UP for hose attach. Tilts -Y from vertical so upper end is on the
+//  operator side (reachable with shop-vac hose) and tube body stays clear
+//  of disc body slab (mouth eq=+8.5; seed-side, off the disc).
+// =====================================================================
+VAC_CLEAN_TUBE_TOTAL_LEN = VAC_CLEAN_TUBE_LENGTH_IN + VAC_CLEAN_TUBE_LENGTH_OUT;
+
 module vac_clean_tube_outer() {
-    front_tube_outer(VAC_CLEAN_TUBE_X, VAC_CLEAN_TUBE_Z,
-                     VAC_CLEAN_TUBE_ELEV_DEG,
-                     VAC_CLEAN_TUBE_OD, VAC_CLEAN_TUBE_LENGTH);
+    translate([VAC_CLEAN_TUBE_X,
+               VAC_CLEAN_TUBE_Y,
+               VAC_CLEAN_TUBE_MOUTH_Z])
+        rotate([90 - VAC_CLEAN_TUBE_ELEV_DEG, 0, 0])
+            cylinder(d = VAC_CLEAN_TUBE_OD,
+                     h = VAC_CLEAN_TUBE_TOTAL_LEN);
 }
+
 module vac_clean_tube_bore() {
-    front_tube_bore(VAC_CLEAN_TUBE_X, VAC_CLEAN_TUBE_Z,
-                    VAC_CLEAN_TUBE_ELEV_DEG,
-                    VAC_CLEAN_TUBE_ID, VAC_CLEAN_TUBE_LENGTH);
+    translate([VAC_CLEAN_TUBE_X,
+               VAC_CLEAN_TUBE_Y,
+               VAC_CLEAN_TUBE_MOUTH_Z - 1])
+        rotate([90 - VAC_CLEAN_TUBE_ELEV_DEG, 0, 0])
+            cylinder(d = VAC_CLEAN_TUBE_ID,
+                     h = VAC_CLEAN_TUBE_TOTAL_LEN + 5);
 }
 
 module seed_pool() {

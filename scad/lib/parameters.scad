@@ -91,19 +91,31 @@ SEED_POOL_BOTTOM_X   = 6;
 // to pass entrained seeds). Both extend OUTWARD (-Y, +Z) from the front
 // face; bores pierce the wall so the pool cavity connects through.
 // --------------------------------------------------------------------------
-FEEDER_TUBE_OD       = 16;     // accommodates Ø6 mm soybean + chute
-FEEDER_TUBE_ID       = 12;
+// Feeder tube — front-mount, 60° elevation, gravity-fed seed supply.
+// Widened from OD16/ID12 to OD18/ID14 (Hendrik 2026-04-27): bigger bore
+// reduces bridging risk for soybean (Ø ~6 mm).
+FEEDER_TUBE_OD       = 18;
+FEEDER_TUBE_ID       = 14;
 FEEDER_TUBE_LENGTH   = 50;
-FEEDER_TUBE_ELEV_DEG = 60;     // up from horizontal
+FEEDER_TUBE_ELEV_DEG = 60;
 FEEDER_TUBE_X        =  15;    // x-offset on front face
 FEEDER_TUBE_Z        = -22;    // 5 mm below pool top
 
-VAC_CLEAN_TUBE_OD       = 32;  // standard shop-vac fitting
-VAC_CLEAN_TUBE_ID       = 28;
-VAC_CLEAN_TUBE_LENGTH   = 50;
-VAC_CLEAN_TUBE_ELEV_DEG = 45;
-VAC_CLEAN_TUBE_X        = -15;
-VAC_CLEAN_TUBE_Z        = -22;
+// Vac-cleanup tube — relocated 2026-04-27 from FRONT-mount/45° to TOP-mount
+// near-vertical (80° elevation = 10° off vertical). Mouth sits INSIDE the
+// pool at ~7 mm above the floor; the tube extends DOWN from the housing
+// top into the pool, and UP outside for shop-vac hose. Tilts toward
+// operator (-Y) so the hose connection is reachable without fouling the
+// disc upper-half. Mouth offset in -Y from disc plane (eq>0 seed side)
+// keeps tube body clear of the rotating disc.
+VAC_CLEAN_TUBE_OD          = 26;   // matches Ø22 shop-vac hose + 2 mm wall
+VAC_CLEAN_TUBE_ID          = 22;
+VAC_CLEAN_TUBE_LENGTH_OUT  = 60;   // outside pool top wall, for hose attach
+VAC_CLEAN_TUBE_LENGTH_IN   = 25;   // inside pool, mouth-to-top-wall span
+VAC_CLEAN_TUBE_ELEV_DEG    = 80;   // from horizontal (10° off vertical)
+VAC_CLEAN_TUBE_X           = 0;    // centred above pool lowest line
+VAC_CLEAN_TUBE_Y           = -42;  // -Y of disc plane at z=-30 → eq=+8.5
+VAC_CLEAN_TUBE_MOUTH_Z     = SEED_POOL_Z_FLOOR + 7;   // = -30, 7 mm above floor
 
 // ==========================================================================
 // AFSTRIJKER (Phase 3 V5) — singulator blade just past pickup zone.
