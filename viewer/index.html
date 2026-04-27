@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PROTISEM V5 — Phase 2 (vacuum pickup, bottom seed-pool)</title>
+  <title>PROTISEM V5 — Phase 3 (afstrijker + geleider + lifecycle)</title>
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     {
@@ -18,8 +18,9 @@
   <div id="canvas-host"></div>
 
   <section id="controls" class="panel">
-    <h1>PROTISEM V5 · Phase 2</h1>
-    <p class="sub">Architecture: vacuum pickup from bottom seed-pool</p>
+    <h1>PROTISEM V5 · Phase 3</h1>
+    <p class="sub">Afstrijker singulator + geleider catch-chute + drop-tube</p>
+
     <div class="row">
       <label for="rpm">Disc RPM</label>
       <input id="rpm" type="range" min="0" max="30" step="0.5" value="5" />
@@ -30,6 +31,7 @@
       <input id="vacuum" type="range" min="0" max="100" step="1" value="80" />
       <span class="value" id="vacuum-value">80%</span>
     </div>
+
     <div class="row">
       <label class="toggle">
         <input id="cross-section" type="checkbox" />
@@ -39,15 +41,46 @@
     <div class="row">
       <label class="toggle">
         <input id="show-markers" type="checkbox" checked />
-        Show pickup / release markers
+        Pickup / release markers
       </label>
     </div>
     <div class="row">
       <label class="toggle">
         <input id="show-pool-fill" type="checkbox" checked />
-        Show seed-pool fill
+        Seed-pool fill
       </label>
     </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-seeds-on-disc" type="checkbox" checked />
+        Seeds on disc (red)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-afstrijker" type="checkbox" checked />
+        Afstrijker 1 (pickup singulator)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-afstrijker2" type="checkbox" checked />
+        Afstrijker 2 (release pusher)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-geleider" type="checkbox" checked />
+        Geleider (catch chute)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-drop-tube" type="checkbox" checked />
+        Drop-tube
+      </label>
+    </div>
+
     <p class="note">Drag to orbit · scroll to zoom · right-drag to pan.</p>
   </section>
 
@@ -56,19 +89,20 @@
     <dl>
       <dt>Rotation angle</dt><dd id="info-angle">0.0°</dd>
       <dt>Pool seeds</dt>    <dd id="info-pool">—</dd>
-      <dt>On disc</dt>       <dd id="info-captured">0</dd>
-      <dt>Released</dt>      <dd id="info-released">0</dd>
-      <dt>Pickup θ</dt>      <dd>270° (disc bottom, in pool)</dd>
-      <dt>Release θ</dt>     <dd>90° (disc top, above hole)</dd>
-      <dt>Travel arc</dt>    <dd>180° along disc rim</dd>
-      <dt>Pool footprint</dt><dd>60 × 40 mm, 20 mm deep</dd>
+      <dt>On disc</dt>       <dd id="info-on-disc">0</dd>
+      <dt>In geleider</dt>   <dd id="info-in-geleider">0</dd>
+      <dt>In drop-tube</dt>  <dd id="info-in-tube">0</dd>
+      <dt>Sown (cum.)</dt>   <dd id="info-sown">0</dd>
+      <dt>Skipped (cum.)</dt><dd id="info-skip">0</dd>
+      <dt>Missed (cum.)</dt> <dd id="info-miss">0</dd>
     </dl>
     <p class="note">
-      Pickup (red) at (0, −29.7, −29.7). θ=270°<br>
-      Release (orange) at (0, +29.7, +29.7). θ=90°<br>
-      Both on plane X=0 (symmetric).<br>
-      Released seed has tangential velocity ~22 mm/s @ 5 RPM in +X — falls
-      and MISSES the central hole. Phase 3 deflector is mandatory.
+      Pickup θ=270° (in pool) → travel 180° on disc-front face → release θ=90°
+      → free-fall into geleider mouth → glide to throat → drop-tube → sown.<br>
+      Singulator (afstrijker) at θ=250° drops 5% of attached seeds back to
+      the pool — visualises the &ldquo;one-seed-per-hole&rdquo; function.<br>
+      Pool refills automatically when it dips below 12 seeds so the
+      animation never runs dry.
     </p>
   </section>
 

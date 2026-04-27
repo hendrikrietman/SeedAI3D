@@ -66,3 +66,113 @@ Acceptance status:
 - All Phase-1 disc checks: PASS.
 - Pool checks (file/watertight/bbox/z_bounds/y_centre): PASS.
 - `disc_above_floor`: FAIL by 2.22 mm — pending Hendrik's call (lower floor or strip teeth).
+
+## Phase 3 V5 — afstrijker + geleider + lifecycle animation (2026-04-27)
+
+Two changes bundled because they only make sense together:
+
+1. **Afstrijker + geleider + drop-tube** added (the components originally
+   planned for Phase 3). New SCAD file `scad/v5_3_barriere_geleider.scad`
+   wires all three:
+
+   - **Afstrijker** — flat blade (18×2×8 mm) tangent to disc rim at
+     θ=250° (20° past pickup, per Phase-3 spec). Sits on the disc-front
+     face, 7 mm offset along DISC_FRONT_NORMAL. World centroid
+     (-14.36, -22.96, -32.86) — geometrically inside the seed-pool
+     volume; the rim has not yet emerged from the pool at θ=250°. Spec
+     wording is preserved; pool-emergence point is θ≈237.5°. Function:
+     5% probability of knocking off attached seeds (singulation), in
+     the viewer's animation only — physical SCAD is just a blade.
+   - **Geleider** — lofted hull from rect catch-mouth (40×20 at z=20,
+     y_center=30) to circular throat (Ø30 at z=-6, y=0). Walls 2 mm.
+     Throat lowered from spec'd z=5 to z=-6 because a straight loft from
+     z=20 to z=5 crosses the disc-body slab (|z-y| ≤ 2.83 mm) at
+     intermediate z; lowering throat below the slab eliminates the
+     interference at the path's centre. Disc-envelope-with-3 mm-clearance
+     is also subtracted from the geleider (analogous to the seed-pool
+     side-wall slots) to carve clean rotation room — slot leaks; sealing
+     brushes deferred to a later phase.
+   - **Drop-tube** — straight pipe Ø30 OD / Ø24 ID from geleider throat
+     (z=-6) down to z=-52 (below pool floor). Fits Ø50 central hole with
+     10 mm radial slop on each side.
+
+2. **Seed-flow animation overhaul.** Phase-2 viewer steady-state showed
+   "Pool 0 / On-disc 0 / Released 80" — pool drained in ~24 s and stayed
+   empty. Two bugs fixed:
+
+   - **Visibility.** Camera lives at world -Y. Physical disc-front face
+     normal is +Y (seeds press against it from the pool). Attached seeds
+     placed on the physical front face were on the FAR side of the disc
+     and hidden behind it. Viewer now uses `DISC_FRONT_VIS = +DISC_NORMAL`
+     for visualisation only — seeds appear on the camera-side face. The
+     SCAD afstrijker stays on the real (physical) front face.
+   - **Pool starvation.** Pool now refills automatically when it drops
+     below 12 seeds, back up to 50. Animation runs indefinitely.
+
+   Full lifecycle state machine:
+
+   `pool → attached → falling → gliding → exiting → landed`
+
+   plus the afstrijker's `attached → pool` knock-back transition. Per-state
+   counters on the HUD: pool / on-disc / in-geleider / in-drop-tube
+   (current totals) and sown / skipped / missed (cumulative). Fall →
+   geleider catch is detected by AABB overlap with the catch-mouth bounds
+   (x ∈ ±20, y ∈ [20, 40], z ∈ [16, 22]). Glide is a smoothstep lerp from
+   catch position to throat (0.4 s vis time). Exit is a linear lerp down
+   the drop-tube (0.35 s).
+
+Acceptance status (geometry_check.py):
+- Phase-1 disc, Phase-2 pool: PASS.
+- Phase-3 afstrijker (file/watertight/centroid-at-θ=250-on-front-face): PASS.
+- Phase-3 geleider (file/watertight/z-bounds/x-extent/disc-clearance≥3 mm): PASS.
+- Phase-3 drop-tube (file/watertight/z-bounds/fits-central-hole): PASS.
+- `disc_above_floor`: still FAIL by ~2.2 mm — open D6 question, unchanged.
+
+All eleven viewer assets serve 200 (disc + pool + afstrijker + geleider +
+drop_tube STLs, plus index.html / viewer.js / styles.css / three.module.js
++ OrbitControls + STLLoader).
+
+## Phase 3 V5 visual fixes — seed offset, raised pool, release pusher (2026-04-27)
+
+Three small visual issues from Hendrik's first-pass review of the Phase-3
+animation, fixed in one update:
+
+1. **Seed offset 5 mm in disc-front-normal direction.** Attached red seeds
+   were rendering with their centres on the disc mid-plane, which made them
+   look embedded in the disc face. Bumped `SEED_OFFSET` from `SEED_RADIUS`
+   (3 mm) to a fixed 5 mm so the sphere's near pole lightly touches the disc
+   surface and most of the sphere is visible in front. Direction unchanged
+   (`DISC_FRONT_VIS = (0, -sin45°, +cos45°)`, the camera-facing face).
+
+2. **Seed-pool raised 8 mm.** Pool floor `−45 → −37`, walls top `−25 → −17`,
+   fill line `−32 → −24`. The pool seed pile (top now at z≈−24) sits well
+   above the disc tooth-rand sweep at θ=270° (z≈−46.7), so seeds no longer
+   visually overlap with the teeth. Disc-rim mid-plane (z=−29.7) still dips
+   ~12.7 mm into the open pool, so vacuum pickup at θ=270° still passes
+   through seed mass.
+
+   *Side effect on D6 floor-clearance:* the disc tooth tip at α=270° (world
+   z=−47.82) now sits 10.82 mm BELOW the raised pool floor at z=−37 (was
+   2.22 mm). The validator still reports `disc_above_floor: gap=−10.82 mm`
+   — the SCAD model still digitally seals the floor by clipping the disc
+   envelope subtraction, but the physical interference is now larger. D6's
+   open question (lower the floor below tooth tips OR strip teeth until
+   Phase 6) is more pressing; Hendrik's call still pending.
+
+3. **Second afstrijker at θ=95°** (5° before the natural release at θ=90°).
+   New SCAD module `afstrijker2()` — same construction as the first blade,
+   but shorter (12 mm) and lower (6 mm). Centroid (−3.66, +33.83, +25.34)
+   matches expected within 0.00 mm. Function in the viewer: ~10% probability
+   per pass that an attached seed passing under it gets "pushed" off the
+   disc straight into the geleider catch-mouth (skipping the falling state),
+   visualising the redundancy against imperfect vacuum cutoff. New
+   `savedCount` counter tracks pushed-and-saved seeds. Both afstrijkers are
+   now individually toggleable in the controls panel.
+
+Acceptance status (geometry_check.py):
+- All Phase-1 / Phase-2 / Phase-3 component checks PASS, including the new
+  `centroid_at_θ=95_on_front_face` check on afstrijker2.
+- `disc_above_floor`: now FAIL by 10.82 mm (was 2.22 mm before raised pool).
+  Pre-existing D6 issue, unchanged in spirit, magnified by visual fix.
+
+All twelve viewer assets serve 200 (now adds afstrijker2.stl).

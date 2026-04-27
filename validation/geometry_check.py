@@ -31,13 +31,33 @@ PARAMS = {
     "SEED_POOL_X": 60.0,
     "SEED_POOL_Y": 40.0,
     "SEED_POOL_DEPTH": 20.0,
-    "SEED_POOL_Z_TOP": -25.0,
-    "SEED_POOL_Z_FLOOR": -45.0,
+    "SEED_POOL_Z_TOP": -17.0,
+    "SEED_POOL_Z_FLOOR": -37.0,
     "SEED_POOL_Y_CENTER": -30.0,
     "SEED_POOL_WALL": 2.0,
     "PICKUP_THETA_DEG": 270.0,
     "RELEASE_THETA_DEG": 90.0,
     "MIN_FLOOR_CLEARANCE_MM": 0.5,
+    "AFSTRIJKER_THETA_DEG": 250.0,
+    "AFSTRIJKER_LENGTH": 18.0,
+    "AFSTRIJKER_HEIGHT": 8.0,
+    "AFSTRIJKER_THICKNESS": 2.0,
+    "AFSTRIJKER2_THETA_DEG": 95.0,
+    "AFSTRIJKER2_LENGTH": 12.0,
+    "AFSTRIJKER2_HEIGHT": 6.0,
+    "AFSTRIJKER2_THICKNESS": 2.0,
+    "GELEIDER_MOUTH_X": 40.0,
+    "GELEIDER_MOUTH_Y": 20.0,
+    "GELEIDER_MOUTH_Z": 20.0,
+    "GELEIDER_MOUTH_Y_CENTER": 30.0,
+    "GELEIDER_THROAT_DIA": 30.0,
+    "GELEIDER_THROAT_Z": -6.0,
+    "GELEIDER_WALL": 2.0,
+    "GELEIDER_DISC_CLEARANCE": 3.0,
+    "DROP_TUBE_OD": 30.0,
+    "DROP_TUBE_ID": 24.0,
+    "DROP_TUBE_Z_TOP": -6.0,
+    "DROP_TUBE_Z_BOTTOM": -52.0,
 }
 
 
@@ -249,6 +269,166 @@ def check_disc_floor_clearance(disc_stl: Path, pool_stl: Path,
     )]
 
 
+def check_afstrijker(stl_path: Path) -> list[CheckResult]:
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # Expected centroid: rim point at θ=AFSTRIJKER_THETA_DEG offset half-height
+    # along front-face normal (0, +sin45°, -cos45°).
+    R = PARAMS["PICKUP_HOLE_RADIUS"]
+    th = math.radians(PARAMS["AFSTRIJKER_THETA_DEG"])
+    tilt = math.radians(PARAMS["DISC_TILT_DEG"])
+    rim = (R * math.cos(th), R * math.sin(th) * math.cos(tilt),
+           R * math.sin(th) * math.sin(tilt))
+    h = PARAMS["DISC_THICKNESS"] / 2 + PARAMS["AFSTRIJKER_HEIGHT"] / 2 + 1
+    front = (0, math.sin(tilt), -math.cos(tilt))
+    expected_c = (rim[0] + h * front[0],
+                  rim[1] + h * front[1],
+                  rim[2] + h * front[2])
+    actual_c = mesh.centroid
+    err = math.sqrt(sum((actual_c[i] - expected_c[i]) ** 2 for i in range(3)))
+    results.append(CheckResult(
+        "centroid_at_θ=250_on_front_face",
+        err < 1.0,
+        f"got=({actual_c[0]:.2f},{actual_c[1]:.2f},{actual_c[2]:.2f}), "
+        f"expected≈({expected_c[0]:.2f},{expected_c[1]:.2f},{expected_c[2]:.2f}), err={err:.2f}",
+    ))
+    return results
+
+
+def check_afstrijker2(stl_path: Path) -> list[CheckResult]:
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    R = PARAMS["PICKUP_HOLE_RADIUS"]
+    th = math.radians(PARAMS["AFSTRIJKER2_THETA_DEG"])
+    tilt = math.radians(PARAMS["DISC_TILT_DEG"])
+    rim = (R * math.cos(th), R * math.sin(th) * math.cos(tilt),
+           R * math.sin(th) * math.sin(tilt))
+    h = PARAMS["DISC_THICKNESS"] / 2 + PARAMS["AFSTRIJKER2_HEIGHT"] / 2 + 1
+    front = (0, math.sin(tilt), -math.cos(tilt))
+    expected_c = (rim[0] + h * front[0],
+                  rim[1] + h * front[1],
+                  rim[2] + h * front[2])
+    actual_c = mesh.centroid
+    err = math.sqrt(sum((actual_c[i] - expected_c[i]) ** 2 for i in range(3)))
+    results.append(CheckResult(
+        "centroid_at_θ=95_on_front_face",
+        err < 1.0,
+        f"got=({actual_c[0]:.2f},{actual_c[1]:.2f},{actual_c[2]:.2f}), "
+        f"expected≈({expected_c[0]:.2f},{expected_c[1]:.2f},{expected_c[2]:.2f}), err={err:.2f}",
+    ))
+    return results
+
+
+def check_geleider(stl_path: Path, disc_stl: Path) -> list[CheckResult]:
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # Z bounds: throat at GELEIDER_THROAT_Z (≈6) up to mouth top (≈MOUTH_Z+2).
+    z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
+    expected_z_min = PARAMS["GELEIDER_THROAT_Z"]
+    expected_z_max = PARAMS["GELEIDER_MOUTH_Z"] + 2
+    results.append(CheckResult(
+        "z_bounds",
+        abs(z_min - expected_z_min) < 1.0 and abs(z_max - expected_z_max) < 1.5,
+        f"z=[{z_min:.2f},{z_max:.2f}], expected≈[{expected_z_min},{expected_z_max}]",
+    ))
+
+    # X-extent: catch-mouth wide-side ≈ MOUTH_X + 2*WALL = 44; throat smaller.
+    x_extent = mesh.extents[0]
+    expected_x = PARAMS["GELEIDER_MOUTH_X"] + 2 * PARAMS["GELEIDER_WALL"]
+    results.append(CheckResult(
+        "mouth_x_extent",
+        abs(x_extent - expected_x) < 1.0,
+        f"x_extent={x_extent:.2f}, expected≈{expected_x}",
+    ))
+
+    # Catch-mouth must NOT clash with disc rotation envelope. Sample points
+    # on geleider, find any closer than GELEIDER_DISC_CLEARANCE to the disc.
+    if disc_stl.exists():
+        disc = trimesh.load(disc_stl, force="mesh")
+        pts, _ = trimesh.sample.sample_surface(mesh, 3000)
+        _, dists, _ = trimesh.proximity.closest_point(disc, pts)
+        min_d = float(dists.min())
+        # Tolerance: SCAD subtraction nominally leaves exactly CLEARANCE mm
+        # but trimesh sampling/proximity rounds at ~0.01 mm.
+        results.append(CheckResult(
+            "disc_clearance",
+            min_d >= PARAMS["GELEIDER_DISC_CLEARANCE"] - 0.05,
+            f"min={min_d:.3f} mm, required≥{PARAMS['GELEIDER_DISC_CLEARANCE']}",
+        ))
+    return results
+
+
+def check_drop_tube(stl_path: Path) -> list[CheckResult]:
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
+    results.append(CheckResult(
+        "z_bounds",
+        abs(z_min - PARAMS["DROP_TUBE_Z_BOTTOM"]) < 1.0
+        and abs(z_max - PARAMS["DROP_TUBE_Z_TOP"]) < 1.0,
+        f"z=[{z_min:.2f},{z_max:.2f}], "
+        f"expected=[{PARAMS['DROP_TUBE_Z_BOTTOM']},{PARAMS['DROP_TUBE_Z_TOP']}]",
+    ))
+
+    # Tube fits through disc central hole (Ø50) with comfortable slop.
+    od_ok = PARAMS["DROP_TUBE_OD"] < PARAMS["CENTRAL_HOLE_DIA"] - 5
+    results.append(CheckResult(
+        "tube_fits_central_hole",
+        od_ok,
+        f"OD={PARAMS['DROP_TUBE_OD']} vs central hole Ø{PARAMS['CENTRAL_HOLE_DIA']} "
+        f"(needs ≥5 mm radial slop)",
+    ))
+    return results
+
+
 def main() -> int:
     print("=== Phase 1: disc ===")
     disc_stl_v1 = ROOT / "stl" / "v4_1" / "disc.stl"
@@ -293,7 +473,37 @@ def main() -> int:
         except Exception as exc:
             print(f"[WARN] assembly cross-section render failed: {exc}")
 
-    all_results = disc_results + pool_results + clearance_results
+    print()
+    print("=== Phase 3 V5: afstrijker ===")
+    afstrijker_stl = ROOT / "stl" / "v5_3" / "afstrijker.stl"
+    afstrijker_results = check_afstrijker(afstrijker_stl)
+    for r in afstrijker_results:
+        print(r)
+
+    print()
+    print("=== Phase 3 V5: afstrijker 2 (release-zone pusher) ===")
+    afstrijker2_stl = ROOT / "stl" / "v5_3" / "afstrijker2.stl"
+    afstrijker2_results = check_afstrijker2(afstrijker2_stl)
+    for r in afstrijker2_results:
+        print(r)
+
+    print()
+    print("=== Phase 3 V5: geleider ===")
+    geleider_stl = ROOT / "stl" / "v5_3" / "geleider.stl"
+    geleider_results = check_geleider(geleider_stl, disc_stl_v2)
+    for r in geleider_results:
+        print(r)
+
+    print()
+    print("=== Phase 3 V5: drop-tube ===")
+    drop_tube_stl = ROOT / "stl" / "v5_3" / "drop_tube.stl"
+    drop_tube_results = check_drop_tube(drop_tube_stl)
+    for r in drop_tube_results:
+        print(r)
+
+    all_results = (disc_results + pool_results + clearance_results
+                   + afstrijker_results + afstrijker2_results
+                   + geleider_results + drop_tube_results)
     failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 

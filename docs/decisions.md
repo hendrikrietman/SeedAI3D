@@ -101,6 +101,28 @@ To restore ≥5 mm perpendicular clearance with the outlet centered above PICKUP
 
 ---
 
+## D7 — Geleider throat below disc-body slab; slot subtraction for clean rotation (Phase 3)
+
+**Date:** 2026-04-27.
+**Question:** Spec put the geleider throat at world (0, 0, 5) and catch-mouth opening at z=20. A straight lofted hull from a 44×24 mm rectangular mouth at z=22, y=30 to a Ø34 circular ring at z=6, y=0 unavoidably passes through the disc-body slab `|z − y| ≤ 2.83 mm` at intermediate z. The disc top face at θ=90° sits at z = y + 2.83; the loft's centerline at z=15 sits at y≈16, where disc body is present at |x|≥13, and the loft has X-extent ±20. Result: 249/5000 sampled geleider surface points landed within 1 mm of disc — direct interference.
+
+**Decision:**
+1. **Lower the throat to z = −6** (was 5). With y=0 at the throat, |z−y|=6 > 2.83 → the throat sits cleanly below the disc-body slab. The path centerline now satisfies `0.9·y − 6 < y − 2.83` ⇔ `y > −31.7` — true everywhere on the path.
+2. **Subtract the disc envelope (with 3 mm clearance) from the geleider** — same trick used on the seed-pool side walls. Carves a slot through the geleider where the disc passes; rotation is unobstructed; clearance ≥3 mm validated by trimesh proximity sampling.
+3. **Drop-tube top moves with throat** — DROP_TUBE_Z_TOP = −6.
+
+**Why not narrower mouth or higher mouth instead:**
+- Narrower mouth (X-shrink): the mouth catches a +X-velocity seed at release. With 5 RPM tangential speed 22 mm/s and ~0.04 s fall time, the seed displaces ~1 mm in +X — Ø10 mouth is enough kinematically. But disc body width across the loft is ~|x| ∈ [13, 60], and even a narrow mouth's *loft surface* (sides flaring from throat to mouth) crosses the disc body unless the throat is below the body slab.
+- Higher mouth: would put the mouth opening at z > 27 to clear the disc body at y=30 (where body face sits at z=27.17). Seed drop distance and bounce risk grow.
+
+**Consequence:**
+- Slot subtraction means the geleider leaks seeds where the disc passes through. Real hardware needs Monosem-style sealing brushes around the disc rim — same as the seed-pool side-wall slots from D6. Deferred to a later phase, flagged as a design constraint.
+- Drop-tube starts higher up (z=−6 instead of z=5), making it 11 mm longer than the spec assumed. Still fits comfortably through the disc Ø50 central hole (10 mm radial slop).
+
+**Files changed:** `scad/lib/parameters.scad` (GELEIDER_THROAT_Z, DROP_TUBE_Z_TOP), `scad/v5_3_barriere_geleider.scad` (added `disc_envelope_for_geleider()` subtraction), `validation/geometry_check.py`.
+
+---
+
 ## D3 — Three.js vendoring strategy (Phase 1)
 
 **Decision:** Vendor only the three files we use (`three.module.js`, `OrbitControls.js`, `STLLoader.js`) into `viewer/vendor/`, total 1.3 MB. Resolve via importmap.
