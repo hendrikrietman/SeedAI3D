@@ -66,13 +66,21 @@ const COS_T = Math.cos(TILT);
 const SIN_T = Math.sin(TILT);
 const DISC_AXIS  = new THREE.Vector3(0, -SIN_T, COS_T).normalize();
 
-// Physical front-face normal (face seeds press against from the pool):
-//   (0, +sin45°, -cos45°). Outward direction is +Y, -Z.
-// Camera lives at -Y, so seeds offset along the physical front-face normal
-// would be hidden behind the disc. For VISIBILITY only, we offset attached
-// seeds along the OPPOSITE direction (camera-facing face). This is a
-// visualization shortcut — the SCAD afstrijker is on the real front face.
-const DISC_FRONT_VIS = new THREE.Vector3(0, -SIN_T, COS_T).normalize();
+// FRONT_NORMAL — unit vector pointing INTO the disc-front half-space.
+// Derived from pool reference, not guessed:
+//
+//   disc_plane_eq(x,y,z) = -sin45°·y + cos45°·z = 0  on the disc mid-plane.
+//   A pool seed near the bottom of the pool, e.g. (0, -29.7, -33), gives
+//   disc_plane_eq = +21.0 + (-23.3) = -2.3 < 0 → that seed is on the
+//   FRONT side. So FRONT_NORMAL must point in the direction of decreasing
+//   disc_plane_eq, i.e. -gradient = (0, +sin45°, -cos45°).
+//
+// This is the same direction the SCAD afstrijkers are placed (validated:
+// centroid offset from rim is h·(0, +sin45°, -cos45°)) — the viewer was
+// previously using -FRONT_NORMAL as a visibility hack which embedded
+// attached seeds in the disc plane. See verification log at first pickup.
+const FRONT_NORMAL = new THREE.Vector3(0, SIN_T, -COS_T).normalize();
+const discPlaneEq = (p) => -SIN_T * p.y + COS_T * p.z;
 
 const R_PICKUP = 42;
 const N_HOLES  = 40;
@@ -230,6 +238,38 @@ function refillPoolIfLow() {
 }
 
 while (poolSeeds.length < POOL_TARGET) spawnPoolSeed();
+
+// One-time front-normal verification — log disc_plane_eq for the topmost
+// pool seed (which by construction is on the front side) so the convention
+// is auditable in the console at startup.
+{
+  let top = poolSeeds[0];
+  for (const s of poolSeeds) if (s.position.z > top.position.z) top = s;
+  const eqTop = discPlaneEq(top.position);
+  console.log(
+    `[FRONT_NORMAL] pool top seed at (${top.position.x.toFixed(2)}, ` +
+    `${top.position.y.toFixed(2)}, ${top.position.z.toFixed(2)}) ` +
+    `→ disc_plane_eq = ${eqTop.toFixed(3)} ` +
+    `(<0 means front side, expected for a pool seed near the floor)`,
+  );
+}
+
+let _frontNormalVerified = false;
+function verifyFrontNormalOnce(holePos, seedPos) {
+  if (_frontNormalVerified) return;
+  const eqHole = discPlaneEq(holePos);
+  const eqSeed = discPlaneEq(seedPos);
+  const onFrontSide = eqSeed < eqHole;
+  console.log(
+    `[FRONT_NORMAL verify] disc_plane_eq(hole)=${eqHole.toFixed(3)}, ` +
+    `disc_plane_eq(seed)=${eqSeed.toFixed(3)}, ` +
+    `seed < hole (front-side) = ${onFrontSide}`,
+  );
+  if (!onFrontSide) {
+    console.warn('[FRONT_NORMAL] seed offset is on WRONG side — flip sign.');
+  }
+  _frontNormalVerified = true;
+}
 
 // ============================================================================
 //  Per-hole state, rotation
@@ -513,10 +553,11 @@ function animate() {
       // Update attached-seed position to ride the rotating hole.
       const wp = holeWorldPosition(n, rotationAngle);
       state.seed.position.set(
-        wp.x + DISC_FRONT_VIS.x * SEED_OFFSET,
-        wp.y + DISC_FRONT_VIS.y * SEED_OFFSET,
-        wp.z + DISC_FRONT_VIS.z * SEED_OFFSET,
+        wp.x + FRONT_NORMAL.x * SEED_OFFSET,
+        wp.y + FRONT_NORMAL.y * SEED_OFFSET,
+        wp.z + FRONT_NORMAL.z * SEED_OFFSET,
       );
+      verifyFrontNormalOnce(wp, state.seed.position);
 
       // Afstrijker singulator effect — once per pass.
       if (!state.sawAfstrijker

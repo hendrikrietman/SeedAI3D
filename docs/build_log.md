@@ -176,3 +176,47 @@ Acceptance status (geometry_check.py):
   Pre-existing D6 issue, unchanged in spirit, magnified by visual fix.
 
 All twelve viewer assets serve 200 (now adds afstrijker2.stl).
+
+## Phase 3 V5 fix — FRONT_NORMAL derived from pool reference (2026-04-27)
+
+The previous attempt placed attached seeds along `DISC_FRONT_VIS = +DISC_NORMAL
+= (0, -sin45°, +cos45°)`, justified at the time as a "visibility hack" because
+seeds on the physical front face would be hidden behind the disc from the
+default camera. That sign was wrong: the seeds appeared embedded in the disc
+plane in side-view because the offset direction was the back-face normal.
+
+**Root-cause fix.** Use the pool as ground truth. By construction, pool
+seeds are below the disc on the front side — that's the whole point of
+vacuum pickup. Define
+
+```
+disc_plane_eq(x, y, z) = -sin45°·y + cos45°·z
+```
+
+A pool seed at, e.g., (0, -29.7, -33) gives `disc_plane_eq = -2.33 < 0` →
+front side. So FRONT_NORMAL is the unit vector pointing in the direction
+of decreasing disc_plane_eq:
+
+```
+FRONT_NORMAL = -∇(disc_plane_eq) = (0, +sin45°, -cos45°) ≈ (0, +0.707, -0.707)
+```
+
+This is the SAME direction the SCAD afstrijkers were already mounted at —
+validation showed afstrijker centroid at θ=250° offset from rim by
+`h·(0, +sin45°, -cos45°)`. So the SCAD was right; only the viewer had the
+wrong sign. Fixed: `FRONT_NORMAL` replaces `DISC_FRONT_VIS`, attached seeds
+offset 5 mm in this direction.
+
+Verification baked into the viewer:
+- At startup, the topmost pool seed's `disc_plane_eq` is logged. Expected
+  to be ≤ 0 (front side).
+- At first pickup, the hole's and the attached seed's `disc_plane_eq` are
+  logged. Expected: `seed < hole` (seed sits on front side, hole on plane).
+- Sanity-check independently confirmed for θ ∈ {270°, 250°, 95°, 90°}:
+  hole_eq = 0, seed_eq = −5 in all four cases.
+
+After this fix, attached seeds at θ=270° land at world (0, -26.16, -33.23) —
+inside the pool volume, sitting on the disc front face. At θ=90° they land
+at (0, +33.23, +26.16) — directly above the geleider catch-mouth (mouth
+y∈[20,40], z=20 to z=22), so the seed enters the catch zone naturally as
+gravity pulls it down.
