@@ -66,20 +66,22 @@ const COS_T = Math.cos(TILT);
 const SIN_T = Math.sin(TILT);
 const DISC_AXIS  = new THREE.Vector3(0, -SIN_T, COS_T).normalize();
 
-// FRONT_NORMAL — unit vector pointing INTO the disc-front half-space.
-// Derived from pool reference, not guessed:
+// FRONT_NORMAL — unit vector pointing INTO the half-space where seeds sit.
+// FLIP (2026-04-27): Hendrik's correction: seeds and pool fill should be
+// on the *operator-visible* side of the disc; chamber on the operator-far
+// side ("behind"). The default viewer camera is at (+X, -Y, +Z), which is
+// in the disc_plane_eq > 0 half-space. So FRONT_NORMAL points into eq>0:
 //
-//   disc_plane_eq(x,y,z) = -sin45°·y + cos45°·z = 0  on the disc mid-plane.
-//   A pool seed near the bottom of the pool, e.g. (0, -29.7, -33), gives
-//   disc_plane_eq = +21.0 + (-23.3) = -2.3 < 0 → that seed is on the
-//   FRONT side. So FRONT_NORMAL must point in the direction of decreasing
-//   disc_plane_eq, i.e. -gradient = (0, +sin45°, -cos45°).
+//   disc_plane_eq(x,y,z) = -sin45°·y + cos45°·z
+//   FRONT_NORMAL = +∇(eq)/|...| = (0, -sin45°, +cos45°)
 //
-// This is the same direction the SCAD afstrijkers are placed (validated:
-// centroid offset from rim is h·(0, +sin45°, -cos45°)) — the viewer was
-// previously using -FRONT_NORMAL as a visibility hack which embedded
-// attached seeds in the disc plane. See verification log at first pickup.
-const FRONT_NORMAL = new THREE.Vector3(0, SIN_T, -COS_T).normalize();
+// Attached seeds at θ=270° rim (0,-29.7,-29.7) offset by FN·SEED_RADIUS
+// land at (0, -31.8, -27.6); disc_plane_eq = +3.0 (eq>0, camera-visible).
+// The vacuum chamber's SCAD source has been mirrored so its bulk is now
+// in +Y, -Z (eq<0, hidden behind disc). Both afstrijker SCAD modules
+// have ALSO been flipped (mirror removed) so the blades stay on the
+// seed-attachment face — they physically must, to brush off seeds.
+const FRONT_NORMAL = new THREE.Vector3(0, -SIN_T, COS_T).normalize();
 const discPlaneEq = (p) => -SIN_T * p.y + COS_T * p.z;
 
 const R_PICKUP = 42;
@@ -275,15 +277,26 @@ scene.add(poolGroup);
 const poolSeeds = [];
 
 function placePoolSeed(seed) {
+  // Reservoir seeds must sit on the seed-side of the disc plane (eq > 0
+  // post-flip), so all visible pool fill is on the same half-space as
+  // the attached seeds and the operator's view. disc_plane_eq(0,y,z) =
+  // -sin45°·y + cos45°·z, so eq > 0 ⇔ z > y. We pick the layer-z first,
+  // then clamp y so y < z − 1.5 mm (margin keeps the seed clear of the
+  // disc plane). The result is a wedge of seeds piling up against the
+  // far-y end of the pool — physically what happens when a tilted disc
+  // dips into a pool: seeds collect on the lower side of the dipping
+  // edge.
   const yMin = POOL.yCenter - POOL.y / 2 + 4;
   const yMax = POOL.yCenter + POOL.y / 2 - 4;
-  const x = (Math.random() - 0.5) * 12;        // V-trough bias
-  const y = yMin + Math.random() * (yMax - yMin);
+  const x = (Math.random() - 0.5) * 12;
   const layer = Math.floor(poolSeeds.length / 14);
-  const z = POOL.zFloor + SEED_RADIUS
-            + layer * (SEED_RADIUS * 1.6)
-            + (Math.random() - 0.5) * 1.5;
-  seed.position.set(x, y, Math.min(z, POOL.fillZ));
+  const z_layer = POOL.zFloor + SEED_RADIUS
+                + layer * (SEED_RADIUS * 1.6)
+                + (Math.random() - 0.5) * 1.5;
+  const z = Math.min(z_layer, POOL.fillZ);
+  const y_max_eff = Math.min(yMax, z - 1.5);
+  const y = yMin + Math.random() * Math.max(0.5, y_max_eff - yMin);
+  seed.position.set(x, y, z);
 }
 
 function spawnPoolSeed() {
@@ -376,11 +389,14 @@ const ANCHOR = {
   afstrijker1: offsetAlongFront(rimPointWorld(250), AFS1_OFFSET),
   afstrijker2: offsetAlongFront(rimPointWorld(95),  AFS2_OFFSET),
   seedAtPickup: offsetAlongFront(rimPointWorld(270), SEED_RADIUS),
-  // Geleider catch-mouth is on the front side at the release end:
+  // Geleider catch-mouth: catches seeds AFTER they've crossed the disc
+  // plane during free-fall. Sits at z=20 below the release point. Its
+  // disc_plane_eq is < 0 (chamber-side); seeds enter from eq>0 side and
+  // descend through it. Position itself is unchanged by the flip.
   geleiderMouth: new THREE.Vector3(0, GELEIDER.mouthYCenter, GELEIDER.mouthZ),
-  // Vacuum chamber centroid is on the BACK side (-FRONT_NORMAL); the
-  // SCAD-validated centroid is (-26.67, -6.67, +6.67).
-  chamber: new THREE.Vector3(-26.67, -6.67, 6.67),
+  // Vacuum chamber centroid (post-FLIP): SCAD-validated (-26.67, +6.67, -6.67).
+  // disc_plane_eq = -9.43 < 0 → chamber-side, opposite of seeds.
+  chamber: new THREE.Vector3(-26.67, 6.67, -6.67),
 };
 
 function meshCentroid(mesh) {

@@ -116,7 +116,15 @@ module vacuum_chamber_pretilt() {
 }
 
 module vacuum_chamber() {
-    rotate([DISC_TILT_DEG, 0, 0]) vacuum_chamber_pretilt();
+    // Mirror in Z (pre-tilt) puts the chamber on the OPPOSITE disc face
+    // from the SCAD top. After rotate([DISC_TILT_DEG, 0, 0]), the chamber
+    // ends up on the operator's far side (in world +Y, -Z direction) —
+    // hidden behind the disc from the default camera at -Y, +Z. The
+    // attached seeds then sit on the camera-visible disc face. See
+    // build log entry "Flip 2026-04-27" for the rationale.
+    rotate([DISC_TILT_DEG, 0, 0])
+        mirror([0, 0, 1])
+            vacuum_chamber_pretilt();
 }
 
 // =====================================================================

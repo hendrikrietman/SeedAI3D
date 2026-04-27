@@ -78,12 +78,14 @@ module afstrijker_blade() {
 }
 
 module afstrijker() {
-    // Mirror in Z to move the blade from the disc TOP face (+Z pre-tilt) to
-    // the FRONT face (-Z pre-tilt). Then apply the disc tilt — the blade
-    // ends up on the V5 front face (whose world-normal is +Y, -Z).
+    // FLIP (2026-04-27): removed mirror([0,0,1]). The blade now stays on
+    // the SCAD top face (+Z pre-tilt). After rotate([DISC_TILT_DEG, 0, 0])
+    // it ends up at world (+Y, +Z direction relative to rim point) — the
+    // disc-back-normal side, which is the operator-visible side of the
+    // disc and therefore (post-flip) the seed-attachment side. Same side
+    // as the new attached seeds; the afstrijker can physically brush them.
     rotate([DISC_TILT_DEG, 0, 0])
-        mirror([0, 0, 1])
-            afstrijker_blade();
+        afstrijker_blade();
 }
 
 // =====================================================================
@@ -109,9 +111,10 @@ module afstrijker2_blade() {
 }
 
 module afstrijker2() {
+    // FLIP (2026-04-27): same as afstrijker — mirror removed so the blade
+    // stays on the seed-attachment side of the disc.
     rotate([DISC_TILT_DEG, 0, 0])
-        mirror([0, 0, 1])
-            afstrijker2_blade();
+        afstrijker2_blade();
 }
 
 // =====================================================================

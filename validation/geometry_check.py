@@ -292,22 +292,22 @@ def check_afstrijker(stl_path: Path) -> list[CheckResult]:
         f"is_watertight={mesh.is_watertight}",
     ))
 
-    # Expected centroid: rim point at θ=AFSTRIJKER_THETA_DEG offset half-height
-    # along front-face normal (0, +sin45°, -cos45°).
+    # FLIP (2026-04-27): rim offset along (0, -sin45°, +cos45°) — the
+    # operator-visible (eq>0) side of the disc, where seeds now attach.
     R = PARAMS["PICKUP_HOLE_RADIUS"]
     th = math.radians(PARAMS["AFSTRIJKER_THETA_DEG"])
     tilt = math.radians(PARAMS["DISC_TILT_DEG"])
     rim = (R * math.cos(th), R * math.sin(th) * math.cos(tilt),
            R * math.sin(th) * math.sin(tilt))
     h = PARAMS["DISC_THICKNESS"] / 2 + PARAMS["AFSTRIJKER_HEIGHT"] / 2 + 1
-    front = (0, math.sin(tilt), -math.cos(tilt))
+    front = (0, -math.sin(tilt), math.cos(tilt))
     expected_c = (rim[0] + h * front[0],
                   rim[1] + h * front[1],
                   rim[2] + h * front[2])
     actual_c = mesh.centroid
     err = math.sqrt(sum((actual_c[i] - expected_c[i]) ** 2 for i in range(3)))
     results.append(CheckResult(
-        "centroid_at_θ=250_on_front_face",
+        "centroid_at_θ=250_on_seed_side",
         err < 1.0,
         f"got=({actual_c[0]:.2f},{actual_c[1]:.2f},{actual_c[2]:.2f}), "
         f"expected≈({expected_c[0]:.2f},{expected_c[1]:.2f},{expected_c[2]:.2f}), err={err:.2f}",
@@ -336,14 +336,14 @@ def check_afstrijker2(stl_path: Path) -> list[CheckResult]:
     rim = (R * math.cos(th), R * math.sin(th) * math.cos(tilt),
            R * math.sin(th) * math.sin(tilt))
     h = PARAMS["DISC_THICKNESS"] / 2 + PARAMS["AFSTRIJKER2_HEIGHT"] / 2 + 1
-    front = (0, math.sin(tilt), -math.cos(tilt))
+    front = (0, -math.sin(tilt), math.cos(tilt))
     expected_c = (rim[0] + h * front[0],
                   rim[1] + h * front[1],
                   rim[2] + h * front[2])
     actual_c = mesh.centroid
     err = math.sqrt(sum((actual_c[i] - expected_c[i]) ** 2 for i in range(3)))
     results.append(CheckResult(
-        "centroid_at_θ=95_on_front_face",
+        "centroid_at_θ=95_on_seed_side",
         err < 1.0,
         f"got=({actual_c[0]:.2f},{actual_c[1]:.2f},{actual_c[2]:.2f}), "
         f"expected≈({expected_c[0]:.2f},{expected_c[1]:.2f},{expected_c[2]:.2f}), err={err:.2f}",
@@ -462,14 +462,20 @@ def check_vacuum_chamber(stl_path: Path) -> list[CheckResult]:
         f"[-{PARAMS['VAC_CHAMBER_R_OUT']}, 0]",
     ))
 
-    # Centroid sits on +disc-back side: y_world ≤ 0, z_world ≥ 0 (the back
-    # half-space relative to the disc plane). With the chamber asymmetric
-    # in -X, centroid x is well into negative.
+    # Centroid sits on the operator-far side of the disc (post-FLIP):
+    # y_world ≥ 0, z_world ≤ 0. The chamber's bulk is in +Y, -Z direction —
+    # hidden behind the disc from the default viewer camera at -Y, +Z.
+    # disc_plane_eq(centroid) < 0 (opposite side from the seeds, which sit
+    # on the eq>0 side). With the chamber asymmetric in -X, centroid x is
+    # well into negative.
     cx, cy, cz = mesh.centroid
+    import math
+    eq = -math.sin(math.radians(45)) * cy + math.cos(math.radians(45)) * cz
     results.append(CheckResult(
-        "centroid_on_back_side",
-        cx < -10.0 and cy < 0.0 and cz > 0.0,
-        f"centroid=({cx:.2f},{cy:.2f},{cz:.2f}); expected x<<0, y<0, z>0",
+        "centroid_on_chamber_side",
+        cx < -10.0 and cy > 0.0 and cz < 0.0 and eq < 0.0,
+        f"centroid=({cx:.2f},{cy:.2f},{cz:.2f}), disc_plane_eq={eq:.2f}; "
+        f"expected x<<0, y>0, z<0, eq<0 (chamber-side, opposite seeds)",
     ))
     return results
 

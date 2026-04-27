@@ -355,3 +355,72 @@ No SCAD changes; all geometry already at correct positions from prior
 phases. This is a documentation/verification step that closes the
 "which-side-is-front" thread for good. Skipping rubber-seal work as
 per spec — that's a separate prompt.
+
+## V5 FLIP — seeds and chamber side-swap (2026-04-27)
+
+Hendrik observed in the viewer: "Seeds should be on the OTHER side of the
+plate, and on that same side all the seeds in the reservoir. The vacuum
+chamber should be placed BEHIND instead!" — i.e. the camera-visible side
+(operator side) must show pool + attached seeds + afstrijkers, with the
+vacuum chamber + nipple hidden behind the disc.
+
+The previous anchor verification correctly proved the disc plane separated
+the two halves, but the assignment of which-side-is-which had the chamber
+on the operator-visible side. This entry inverts that.
+
+**Sign flip**:
+
+- `FRONT_NORMAL` was `(0, +sin45°, −cos45°) ≈ (0, +0.707, −0.707)`.
+- Now `FRONT_NORMAL = (0, −sin45°, +cos45°) ≈ (0, −0.707, +0.707)` —
+  points toward the default camera at (−Y, +Z).
+
+**SCAD changes**:
+
+- `scad/v5_4_vacuum_chamber.scad` — `vacuum_chamber()` now wraps
+  `vacuum_chamber_pretilt()` in `mirror([0,0,1])` before the disc-tilt
+  rotate. Chamber moves from +Z pre-tilt to −Z pre-tilt; after the
+  rotate it sits behind the disc (operator's far side).
+- `scad/v5_3_barriere_geleider.scad` — `afstrijker()` and `afstrijker2()`
+  had their `mirror([0,0,1])` removed. Blades stay on the +Z pre-tilt
+  face; after the rotate they end up on the operator-visible side
+  (same side as the new attached seeds, where they physically must be
+  to function as singulators).
+
+**STL re-exports** (centroids):
+
+- `vacuum_chamber.stl`: was (−26.67, −6.67, +6.67) → now
+  (−26.67, +6.67, −6.67); disc_plane_eq = −9.43 (chamber side).
+- `afstrijker.stl`: was (−14.36, −22.96, −32.86) → now
+  (−14.36, −32.86, −22.96); seed side (eq ≈ +7.07).
+- `afstrijker2.stl`: was (−3.66, +33.83, +25.34) → now
+  (−3.66, +25.34, +33.83); seed side (eq ≈ +6.06).
+
+**Validation** (`validation/geometry_check.py`): chamber centroid check
+relabelled `centroid_on_chamber_side` (asserts cy>0, cz<0, eq<0);
+afstrijker centroid checks switched to the flipped FRONT_NORMAL and
+relabelled `_on_seed_side`. All Phase-3/4 checks PASS post-flip.
+Pre-existing D6 `disc_above_floor` regression unchanged.
+
+**Viewer changes** (`viewer/viewer.js`):
+
+- `FRONT_NORMAL` flipped to `(0, −SIN_T, +COS_T)`; comment block
+  rewritten for the operator-visible-side rationale.
+- `ANCHOR.chamber` expected centroid updated to (−26.67, +6.67, −6.67).
+- `placePoolSeed()` rewritten to constrain every reservoir sphere to
+  the eq>0 (seed-side) half-space: pick layer-z first, clamp y so
+  that `y < z − 1.5`. Result is a wedge of seeds piling against the
+  far-y end of the pool, all on the camera-visible side of the disc
+  plane.
+
+**Three-view rendered confirmation** (renders/v5_4_anchor/, overwritten):
+
+- `iso.png` — chamber + nipple barely visible behind upper disc edge;
+  afstrijkers + pool + drop-tube visible in front of disc.
+- `side_x.png` — disc as tilted blue stripe; pool box at lower-left
+  (front side), chamber back-block + nipple cylinder at upper-right
+  (back side). Plane separates the two halves with the new assignment.
+- `front.png` — face-on view: afstrijker 2 visible at top of disc, pool
+  transparent in front, chamber/nipple completely hidden behind disc.
+  Textbook "pump from behind, seed from front" configuration.
+
+**Tag**: v5.4.2.
