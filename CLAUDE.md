@@ -22,10 +22,12 @@
 - World: X=left/right, Y=front/back, Z=up
 - Disc centre at origin after rotation
 - Disc tilt: rotate([45,0,0]); disc normal = (0, -sin45°, cos45°) ≈ (0, -0.707, +0.707) (D1)
+- Disc FRONT face = -DISC_NORMAL = (0, +0.707, -0.707). Seeds press against it.
 - World coords on R=42 pickup-hole circle: (R·cosθ, R·sinθ·cos45°, R·sinθ·sin45°)
-- Pickup zone (red)  at θ=110° → (-14.365, 27.907, 27.907) (D5)
-- Release zone (orange) at θ=70° → (+14.365, 27.907, 27.907) (D5)
-- Seed travels CCW the LONG way (~320°): pickup → bottom → release
+- **V5 architecture (D6):** vacuum pickup from a bottom seed-pool — not a top reservoir.
+- Pickup (red)  at θ=270° → (0, -29.7, -29.7) — disc dips into seed pool
+- Release (orange) at θ=90° → (0, +29.7, +29.7) — directly above central drop hole
+- Seed travels 180° along disc rim, pickup → release. Travel direction = θ decreasing (Option 1).
 
 ## Working discipline
 

@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader }     from 'three/addons/loaders/STLLoader.js';
 
+// ============================================================================
+//  PROTISEM V5 — Phase 2: bottom seed-pool, vacuum pickup, 180° travel arc
+// ============================================================================
+
 // ----- world setup (Z is up to match OpenSCAD's frame) -----
 const host = document.getElementById('canvas-host');
 const scene = new THREE.Scene();
@@ -14,8 +18,8 @@ const camera = new THREE.PerspectiveCamera(
   2000,
 );
 camera.up.set(0, 0, 1);
-camera.position.set(220, -240, 200);
-camera.lookAt(0, 15, 30);
+camera.position.set(220, -240, 80);
+camera.lookAt(0, -10, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -26,7 +30,7 @@ host.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.target.set(0, 15, 30);
+controls.target.set(0, -10, 0);
 
 // ----- lighting -----
 scene.add(new THREE.AmbientLight(0xffffff, 0.55));
@@ -37,45 +41,61 @@ const fill = new THREE.DirectionalLight(0xffffff, 0.35);
 fill.position.set(-180, 120, -100);
 scene.add(fill);
 
-// ----- ground/grid for reference -----
+// ----- ground/grid -----
 const grid = new THREE.GridHelper(400, 20, 0xbbbbbb, 0xdddddd);
-grid.rotation.x = Math.PI / 2;     // grid in XY plane (Z up)
-grid.position.z = -50;
+grid.rotation.x = Math.PI / 2;
+grid.position.z = -55;
 scene.add(grid);
 
-// ----- geometric constants (mirror parameters.scad) -----
+// ============================================================================
+//  Geometric constants — mirror parameters.scad
+// ============================================================================
 const TILT = Math.PI / 4;
-const DISC_AXIS = new THREE.Vector3(0, -Math.sin(TILT), Math.cos(TILT)).normalize();
-// Pickup θ=110°, release θ=70° → both at world-Z 27.907 (high, near top of disc).
-// Seed travels CCW the long way (~320°) from pickup → bottom → release.
-const PICKUP_POS  = new THREE.Vector3(-14.365, 27.907, 27.907);  // θ=110°
-const RELEASE_POS = new THREE.Vector3( 14.365, 27.907, 27.907);  // θ=70°
-const OUTLET_POS  = new THREE.Vector3(-14.365, 27.907, 35.000);  // 7.1 mm above pickup
-const DISC_TOP_PLANE_OFFSET = 2.828;  // z = y + 2.828 on disc top surface
-const DISC_OD_HALF = 60;              // disc body radius (no teeth)
+const COS_T = Math.cos(TILT);
+const SIN_T = Math.sin(TILT);
+const DISC_AXIS  = new THREE.Vector3(0, -SIN_T, COS_T).normalize();
+const DISC_FRONT = new THREE.Vector3(0,  SIN_T, -COS_T).normalize();   // +Y component
+const R_PICKUP   = 42;             // pickup-hole circle
+const N_HOLES    = 40;
+const PICKUP_THETA  = 270 * Math.PI / 180;   // pickup angle (disc-local)
+const RELEASE_THETA =  90 * Math.PI / 180;   // release angle
+const PICKUP_POS  = new THREE.Vector3(0, -29.698, -29.698);
+const RELEASE_POS = new THREE.Vector3(0,  29.698,  29.698);
 
-// ----- clipping plane: cuts +X half so reservoir is preserved -----
+// Pool geometry
+const POOL = {
+  x: 60, y: 40, depth: 20,
+  zTop: -25, zFloor: -45, yCenter: -30,
+  fillZ: -32,    // approximate seed-pile top when full
+};
+
+// ============================================================================
+//  Materials
+// ============================================================================
 const clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
 
 const discMat = new THREE.MeshPhongMaterial({
-  color: 0x6699d4,
-  specular: 0x111111,
-  shininess: 28,
-  side: THREE.DoubleSide,
+  color: 0x6699d4, specular: 0x111111, shininess: 28,
+  side: THREE.DoubleSide, clippingPlanes: [],
+});
+
+const poolMat = new THREE.MeshPhongMaterial({
+  color: 0xb0b8c0, specular: 0x222222, shininess: 18,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.32,
   clippingPlanes: [],
 });
 
-const reservoirMat = new THREE.MeshPhongMaterial({
-  color: 0xb6c0c8,
-  specular: 0x222222,
-  shininess: 18,
-  side: THREE.DoubleSide,
-  transparent: true,
-  opacity: 0.45,
-  clippingPlanes: [],
-});
+const SEED_RADIUS = 3;     // mm
+const seedGeom = new THREE.SphereGeometry(SEED_RADIUS, 14, 10);
+const poolSeedMat     = new THREE.MeshPhongMaterial({ color: 0xc9a23c, shininess: 30 });
+const capturedSeedMat = new THREE.MeshPhongMaterial({
+  color: 0xe04030, emissive: 0x801010, shininess: 60,
+});                                             // red-glow on disc
+const fallingSeedMat  = new THREE.MeshPhongMaterial({ color: 0xe6c84d, shininess: 40 });
 
-// ----- markers -----
+// ============================================================================
+//  Markers
+// ============================================================================
 const markerGroup = new THREE.Group();
 {
   const r = 2.0;
@@ -87,16 +107,15 @@ const markerGroup = new THREE.Group();
     m.position.copy(pos);
     return m;
   };
-  markerGroup.add(mk(PICKUP_POS,  0xd9342b));   // pickup  (red)   θ=110°
-  markerGroup.add(mk(RELEASE_POS, 0xe89a2e));   // release (orange) θ=70°
-  markerGroup.add(mk(OUTLET_POS,  0xf5d33b));   // outlet  (yellow)
+  markerGroup.add(mk(PICKUP_POS,  0xd9342b));   // pickup  (red)   θ=270°
+  markerGroup.add(mk(RELEASE_POS, 0xe89a2e));   // release (orange) θ=90°
 }
 scene.add(markerGroup);
 
-// ----- load STLs -----
+// ============================================================================
+//  STL load
+// ============================================================================
 let disc = null;
-let rotationAngle = 0;
-
 const loader = new STLLoader();
 
 loader.load('./models/disc.stl', (geometry) => {
@@ -105,104 +124,157 @@ loader.load('./models/disc.stl', (geometry) => {
   scene.add(disc);
 }, undefined, (err) => console.error('disc load failed:', err));
 
-loader.load('./models/reservoir.stl', (geometry) => {
+loader.load('./models/seed_pool.stl', (geometry) => {
   geometry.computeVertexNormals();
-  const m = new THREE.Mesh(geometry, reservoirMat);
+  const m = new THREE.Mesh(geometry, poolMat);
   scene.add(m);
-}, undefined, (err) => console.error('reservoir load failed:', err));
+}, undefined, (err) => console.error('seed_pool load failed:', err));
 
-// ----- seeds (yellow spheres dropping from outlet) -----
-const SEED_RADIUS = 3;        // mm; soybean ~6 mm Ø
-const GRAVITY    = 9810;      // mm/s² (real, will look fast — viewer scales below)
-const TIME_SCALE = 0.18;      // visualisation slow-down
-const seedGeom = new THREE.SphereGeometry(SEED_RADIUS, 16, 12);
-const seedMat  = new THREE.MeshPhongMaterial({
-  color: 0xe6c84d, specular: 0x333333, shininess: 40,
-});
-const seeds = [];
-const seedsGroup = new THREE.Group();
-scene.add(seedsGroup);
+// ============================================================================
+//  Seed-pool fill — ~80 loose seeds piled in the pool
+// ============================================================================
+const poolGroup = new THREE.Group();
+scene.add(poolGroup);
+const poolSeeds = [];        // available for pickup
 
-function spawnSeed() {
-  const m = new THREE.Mesh(seedGeom, seedMat);
-  // small random offset within the inner Ø12 outlet
-  const r = Math.random() * (6 - SEED_RADIUS - 0.5);
-  const a = Math.random() * Math.PI * 2;
-  m.position.set(
-    OUTLET_POS.x + r * Math.cos(a),
-    OUTLET_POS.y + r * Math.sin(a),
-    OUTLET_POS.z - SEED_RADIUS,
-  );
-  m.userData.vz = 0;
-  m.userData.t  = 0;
-  seedsGroup.add(m);
-  seeds.push(m);
+function spawnPoolFill(n) {
+  // Pile seeds along the V-trough bottom (narrow strip in X, full Y).
+  // Random scatter biased toward the disc-rim dip line.
+  const yMin = POOL.yCenter - POOL.y/2 + 4;
+  const yMax = POOL.yCenter + POOL.y/2 - 4;
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(seedGeom, poolSeedMat);
+    // Strong bias toward the V-trough centerline (x≈0)
+    const x = (Math.random() - 0.5) * 12;
+    const y = yMin + Math.random() * (yMax - yMin);
+    // Stack vertically — a few rows from floor up to fill level
+    const layer = Math.floor(i / 16);   // ~16 seeds per layer
+    const z = POOL.zFloor + SEED_RADIUS + layer * (SEED_RADIUS * 1.6)
+              + (Math.random() - 0.5) * 1.5;
+    m.position.set(x, y, Math.min(z, POOL.fillZ));
+    poolGroup.add(m);
+    poolSeeds.push(m);
+  }
+}
+spawnPoolFill(80);
+
+// ============================================================================
+//  Hole tracking, capture/travel/release state
+// ============================================================================
+//
+// Each of N_HOLES has a fixed disc-local angle θ_n = n·(2π/N_HOLES).
+// Disc rotation φ adds to it: world disc-local angle = (θ_n + φ) mod 2π.
+// At PICKUP_THETA → attempt capture. At RELEASE_THETA → detach.
+// Per-hole state tracks one captured seed.
+//
+// Travel direction (Option 1, per V5 spec): θ DECREASES over time —
+// pickup θ=270° decreases through 180° (left side) up to 90° (release).
+// In Three.js, we apply rotation around DISC_AXIS by NEGATIVE rotationAngle
+// to achieve decreasing θ.
+
+const holeState = new Array(N_HOLES).fill(null);    // null | { seed: Mesh }
+
+let rotationAngle = 0;          // +ω in disc-local frame; we apply -rotationAngle to mesh
+
+function holeWorldPosition(n, phi) {
+  // φ is the cumulative rotation. Effective disc-local angle = θ_n - φ
+  // (Option 1: θ decreases). Then apply tilt to map disc-local → world.
+  const theta = (n * 2 * Math.PI / N_HOLES) - phi;
+  const lx = R_PICKUP * Math.cos(theta);
+  const ly = R_PICKUP * Math.sin(theta);
+  return new THREE.Vector3(lx, ly * COS_T, ly * SIN_T);
 }
 
-function updateSeeds(dt) {
+function holeIsAt(n, phi, targetTheta, tol) {
+  // Current effective θ in disc-local
+  let theta = ((n * 2 * Math.PI / N_HOLES) - phi) % (2 * Math.PI);
+  if (theta < 0) theta += 2 * Math.PI;
+  const d = Math.abs(theta - targetTheta);
+  return Math.min(d, 2 * Math.PI - d) < tol;
+}
+
+// ============================================================================
+//  Falling seeds (after release)
+// ============================================================================
+const GRAVITY  = 9810;          // mm/s²
+const TIME_SCALE = 0.18;        // visualisation slow-down
+const fallingGroup = new THREE.Group();
+scene.add(fallingGroup);
+const fallingSeeds = [];
+
+function releaseSeed(seedMesh, omega) {
+  // Compute tangential velocity at release: v = ω × r
+  // Travel direction is -ω in disc-local (Option 1) → world ω = -|ω|·DISC_AXIS
+  // For the velocity calc we just use the result: at release (0, 29.7, 29.7),
+  // |v| = |ω|·R, direction +X.
+  const r = RELEASE_POS;
+  const wMag = omega;   // rad/s, signed (positive in our convention)
+  // ω vector (Option 1): along -DISC_AXIS times wMag
+  const wVec = DISC_AXIS.clone().multiplyScalar(-wMag);
+  const v = new THREE.Vector3().crossVectors(wVec, r);
+  seedMesh.material = fallingSeedMat;
+  seedMesh.userData = { vx: v.x, vy: v.y, vz: v.z, t: 0, falling: true };
+  fallingGroup.attach(seedMesh);   // re-parent to scene root
+  fallingSeeds.push(seedMesh);
+}
+
+function updateFallingSeeds(dt) {
   const sdt = dt * TIME_SCALE;
-  for (let i = seeds.length - 1; i >= 0; i--) {
-    const s = seeds[i];
+  for (let i = fallingSeeds.length - 1; i >= 0; i--) {
+    const s = fallingSeeds[i];
     s.userData.vz -= GRAVITY * sdt;
+    s.position.x  += s.userData.vx * sdt;
+    s.position.y  += s.userData.vy * sdt;
     s.position.z  += s.userData.vz * sdt;
     s.userData.t  += dt;
 
-    // Land on the disc top plane: z = y + 2.828, but only over disc body.
-    // Disc-frame radius = |inverse-rotate(point) projected onto disc plane|.
-    const yPre = s.position.y * Math.cos(TILT) + s.position.z * Math.sin(TILT);
-    const discR = Math.hypot(s.position.x, yPre);
-    // Skip the central drop-hole (R≤25) — seeds there fall straight through.
-    const onDisc = discR <= DISC_OD_HALF && discR >= 25 + SEED_RADIUS;
-    const landZ = s.position.y + DISC_TOP_PLANE_OFFSET + SEED_RADIUS;
-    if (onDisc && s.position.z <= landZ) {
-      s.position.z = landZ;
-      s.userData.vz = 0;
-      // Remove seed shortly after landing — vacuum in later phase will pick it up.
-      if (s.userData.t > 1.5) {
-        seedsGroup.remove(s);
-        seeds.splice(i, 1);
-      }
-    } else if (s.position.z < -80) {
-      // Failsafe: missed the disc, fell off the bottom
-      seedsGroup.remove(s);
-      seeds.splice(i, 1);
+    // Remove when far below the disc
+    if (s.position.z < -60 || s.userData.t > 4.0) {
+      fallingGroup.remove(s);
+      fallingSeeds.splice(i, 1);
     }
   }
 }
 
-// ----- UI -----
+// ============================================================================
+//  UI
+// ============================================================================
 const rpmInput      = document.getElementById('rpm');
 const rpmValue      = document.getElementById('rpm-value');
-const seedRateInput = document.getElementById('seed-rate');
-const seedRateValue = document.getElementById('seed-rate-value');
+const vacuumInput   = document.getElementById('vacuum');
+const vacuumValue   = document.getElementById('vacuum-value');
 const csInput       = document.getElementById('cross-section');
 const markersInput  = document.getElementById('show-markers');
+const poolFillInput = document.getElementById('show-pool-fill');
 const angleEl       = document.getElementById('info-angle');
-const seedsEl       = document.getElementById('info-seeds');
+const poolEl        = document.getElementById('info-pool');
+const captEl        = document.getElementById('info-captured');
+const relEl         = document.getElementById('info-released');
 
 let rpm = parseFloat(rpmInput.value);
-let seedRate = parseFloat(seedRateInput.value);
+let vacuum = parseFloat(vacuumInput.value);
+let releasedCount = 0;
 
 rpmInput.addEventListener('input', () => {
   rpm = parseFloat(rpmInput.value);
   rpmValue.textContent = rpm.toFixed(1) + ' rpm';
 });
-
-seedRateInput.addEventListener('input', () => {
-  seedRate = parseFloat(seedRateInput.value);
-  seedRateValue.textContent = seedRate.toFixed(1) + '/s';
+vacuumInput.addEventListener('input', () => {
+  vacuum = parseFloat(vacuumInput.value);
+  vacuumValue.textContent = vacuum.toFixed(0) + '%';
 });
-
 csInput.addEventListener('change', () => {
   const planes = csInput.checked ? [clipPlane] : [];
   discMat.clippingPlanes = planes;
-  reservoirMat.clippingPlanes = planes;
+  poolMat.clippingPlanes = planes;
   discMat.needsUpdate = true;
-  reservoirMat.needsUpdate = true;
+  poolMat.needsUpdate = true;
 });
-
 markersInput.addEventListener('change', () => {
   markerGroup.visible = markersInput.checked;
+});
+poolFillInput.addEventListener('change', () => {
+  poolGroup.visible = poolFillInput.checked;
 });
 
 // ----- resize -----
@@ -215,33 +287,69 @@ function onResize() {
 }
 window.addEventListener('resize', onResize);
 
-// ----- animation -----
+// ============================================================================
+//  Animation
+// ============================================================================
 const clock = new THREE.Clock();
-let spawnAccumulator = 0;
 
 function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
 
-  // Disc rotation
-  rotationAngle += (rpm / 60) * 2 * Math.PI * dt;
+  // Disc rotation (Option 1: θ decreases — apply -rotationAngle to mesh).
+  const omega = (rpm / 60) * 2 * Math.PI;     // rad/s
+  rotationAngle += omega * dt;
   rotationAngle %= 2 * Math.PI;
-  if (disc) disc.setRotationFromAxisAngle(DISC_AXIS, rotationAngle);
+  if (disc) disc.setRotationFromAxisAngle(DISC_AXIS, -rotationAngle);
 
-  // Seed spawning at configured rate
-  if (seedRate > 0) {
-    spawnAccumulator += seedRate * dt;
-    while (spawnAccumulator >= 1) {
-      spawnSeed();
-      spawnAccumulator -= 1;
+  // Per-hole pickup / travel / release
+  const tol = Math.max(0.05, omega * dt * 1.2);   // a slice in θ
+  for (let n = 0; n < N_HOLES; n++) {
+    const state = holeState[n];
+
+    // Update captured seed position so it rides the hole
+    if (state) {
+      const wp = holeWorldPosition(n, rotationAngle);
+      // Sit the seed on the disc-front face (offset by SEED_RADIUS along front normal)
+      state.seed.position.set(
+        wp.x + DISC_FRONT.x * SEED_RADIUS,
+        wp.y + DISC_FRONT.y * SEED_RADIUS,
+        wp.z + DISC_FRONT.z * SEED_RADIUS,
+      );
     }
-  } else {
-    spawnAccumulator = 0;
+
+    // Release at θ=90° if the hole is carrying a seed
+    if (state && holeIsAt(n, rotationAngle, RELEASE_THETA, tol)) {
+      releaseSeed(state.seed, omega);
+      holeState[n] = null;
+      releasedCount++;
+      continue;
+    }
+
+    // Pickup at θ=270° if vacuum is on AND pool has seeds AND hole is empty
+    if (!state && vacuum > 5 && poolSeeds.length > 0
+        && holeIsAt(n, rotationAngle, PICKUP_THETA, tol)) {
+      // Take the topmost (highest-z) pool seed
+      let topIdx = 0;
+      for (let i = 1; i < poolSeeds.length; i++) {
+        if (poolSeeds[i].position.z > poolSeeds[topIdx].position.z) topIdx = i;
+      }
+      const seed = poolSeeds[topIdx];
+      poolSeeds.splice(topIdx, 1);
+      poolGroup.remove(seed);
+      seed.material = capturedSeedMat;
+      scene.add(seed);
+      holeState[n] = { seed };
+    }
   }
-  updateSeeds(dt);
+
+  updateFallingSeeds(dt);
 
   // HUD
-  angleEl.textContent = (rotationAngle * 180 / Math.PI).toFixed(1) + '°';
-  seedsEl.textContent = seeds.length;
+  angleEl.textContent  = (rotationAngle * 180 / Math.PI).toFixed(1) + '°';
+  poolEl.textContent   = poolSeeds.length;
+  const captured = holeState.filter(s => s).length;
+  captEl.textContent   = captured;
+  relEl.textContent    = releasedCount;
 
   controls.update();
   renderer.render(scene, camera);

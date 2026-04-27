@@ -33,3 +33,36 @@
 ### Phase 3 physics note (deflector + funnel is mandatory, not optional)
 
 At release (+14.4, 27.9, 27.9) and 5 RPM, the pickup hole's tangential speed is ω·R = (5·2π/60)·42 ≈ 22 mm/s. If the seed simply detaches and free-falls under gravity, it crosses z=0 at world (~12, 28, 0) — well outside the central hole (R=25 around origin). Conclusion: **a seed released without guidance misses the central hole** and lands on the back face of the disc. Phase 3 must therefore include a deflector ramp from the release zone toward the central hole; the trickle-funnel cannot be ornamental.
+
+## Phase 2 V5 — architecture switch: top reservoir → bottom seed-pool (2026-04-27)
+
+> Phase 2 V5: architectuur omschakeling van top-reservoir (V4) naar bottom
+> seed-pool (V5) op verzoek van Hendrik. Reden: vacuum-pickup uit zaad-pool
+> is conceptueel beter voor singulatie-precisie (Earthway/MaterMacc/Monosem
+> patroon) en geeft betere kinetische voorwaarden bij pickup (zaad op
+> snelheid 0). Wel architectureel ander dan V4-tekening — dit is V5 niet V4.
+
+What changed:
+
+- Pickup θ moved to **270°** (disc bottom, world (0, -29.7, -29.7)). Release θ moved to **90°** (disc top, world (0, +29.7, +29.7)). Both on X=0 plane.
+- Travel arc is now **180°** along the disc rim, decreasing θ (Option 1 — front face rises into release).
+- `scad/v4_2_reservoir.scad` deleted; replaced by `scad/v5_2_seed_pool.scad`.
+- Pool: 60 × 40 × 20 mm open bowl, centred at (0, -30, -35). V-trough bottom (6 mm strip) so seeds gather along the disc-rim dip line.
+- Disc-envelope subtraction carves slots through the X=±30 side walls so the disc can dip in. Floor and front/back walls stay sealed.
+- `parameters.scad`, `validation/geometry_check.py`, viewer (markers, animation, UI) all rewritten.
+
+Geometric findings worth flagging:
+
+1. **Disc TEETH dip below pool floor.** Tooth tips at α=270°, z_l=-2 sit at world z=-48.09. Pool floor at z=-45 → 3.09 mm interference. The SCAD model clips the disc envelope to z ≥ floor+1 so the *digital* floor stays sealed, but a real disc spinning at 5 RPM would saw into a real floor at z=-45. Two clean fixes available:
+   - Lower pool floor to z=-50 (5 mm clearance below tooth tips). Pool depth becomes 25 mm.
+   - Remove gear teeth from the disc until Phase 6 (gear drive). Phase 1 disc would become OD=120 (no teeth).
+   Validation flags this as `disc_above_floor: gap=-2.22 mm` — left failing on purpose so the choice is in front of Hendrik.
+
+2. **Seed-pool side-wall slots leak.** Real Monosem/MaterMacc seeders use brushes/wipers around the disc to seal these slots so seeds don't escape. The SCAD model cuts clean slots; sealing is a Phase-3 (or later) concern.
+
+3. **Released seed misses central hole.** At release (0, 29.7, 29.7), tangential velocity is ~22 mm/s in +X (5 RPM). Free-fall trajectory enters disc body at (0.5, 29.7, 26.9), r_local=40 (between central hole at R=25 and outer rim at R=60). Lands on disc back face. Same conclusion as before: Phase 3 deflector is non-negotiable.
+
+Acceptance status:
+- All Phase-1 disc checks: PASS.
+- Pool checks (file/watertight/bbox/z_bounds/y_centre): PASS.
+- `disc_above_floor`: FAIL by 2.22 mm — pending Hendrik's call (lower floor or strip teeth).

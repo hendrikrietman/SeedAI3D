@@ -28,14 +28,16 @@ PARAMS = {
     "PICKUP_HOLE_DIA": 2.5,
     "TOOTH_COUNT": 60,
     "DISC_TILT_DEG": 45.0,
-    "RESERVOIR_TOP_X": 60.0,
-    "RESERVOIR_TOP_Y": 60.0,
-    "RESERVOIR_OUTLET_DIA": 12.0,
-    "RESERVOIR_HEIGHT": 80.0,
-    "RESERVOIR_WALL": 2.0,
-    "RESERVOIR_OUTLET_CLEARANCE": 7.1,
-    "PICKUP_THETA_DEG": 110.0,
-    "MIN_CLEARANCE_MM": 5.0,
+    "SEED_POOL_X": 60.0,
+    "SEED_POOL_Y": 40.0,
+    "SEED_POOL_DEPTH": 20.0,
+    "SEED_POOL_Z_TOP": -25.0,
+    "SEED_POOL_Z_FLOOR": -45.0,
+    "SEED_POOL_Y_CENTER": -30.0,
+    "SEED_POOL_WALL": 2.0,
+    "PICKUP_THETA_DEG": 270.0,
+    "RELEASE_THETA_DEG": 90.0,
+    "MIN_FLOOR_CLEARANCE_MM": 0.5,
 }
 
 
@@ -162,7 +164,7 @@ def render_cross_section_png(mesh: trimesh.Trimesh, out_path: Path) -> None:
     plt.close(fig)
 
 
-def check_reservoir(stl_path: Path) -> list[CheckResult]:
+def check_seed_pool(stl_path: Path) -> list[CheckResult]:
     results: list[CheckResult] = []
 
     if not stl_path.exists():
@@ -181,9 +183,10 @@ def check_reservoir(stl_path: Path) -> list[CheckResult]:
         f"is_watertight={mesh.is_watertight}",
     ))
 
-    # Bounding box: 60×60 footprint × 80 tall, centred over PICKUP_TOP_POS
+    # Bounding box: 60 × 40 × 20 (X × Y × Z). Slot subtraction may shave
+    # off small chunks of the side walls but the outer extents stay.
     extents = mesh.extents
-    expected_extents = (60.0, 60.0, 80.0)
+    expected_extents = (PARAMS["SEED_POOL_X"], PARAMS["SEED_POOL_Y"], PARAMS["SEED_POOL_DEPTH"])
     diffs = [abs(extents[i] - expected_extents[i]) for i in range(3)]
     bbox_ok = all(d < 1.0 for d in diffs)
     results.append(CheckResult(
@@ -192,57 +195,57 @@ def check_reservoir(stl_path: Path) -> list[CheckResult]:
         f"got={extents.round(2).tolist()}, expected≈{list(expected_extents)}",
     ))
 
-    # Outlet bottom should sit at z = PICKUP_POS_Z + clearance.
-    # PICKUP_POS_Z = R · sin(θ) · sin(tilt).
-    tilt = math.radians(PARAMS["DISC_TILT_DEG"])
-    theta = math.radians(PARAMS["PICKUP_THETA_DEG"])
-    pickup_z = PARAMS["PICKUP_HOLE_RADIUS"] * math.sin(theta) * math.sin(tilt)
-    expected_z_min = pickup_z + PARAMS["RESERVOIR_OUTLET_CLEARANCE"]
-    actual_z_min = float(mesh.bounds[0, 2])
+    # Floor at SEED_POOL_Z_FLOOR, top at SEED_POOL_Z_TOP.
+    z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
     results.append(CheckResult(
-        "outlet_height",
-        abs(actual_z_min - expected_z_min) < 0.5,
-        f"outlet z={actual_z_min:.2f}, expected={expected_z_min:.2f}",
+        "z_bounds",
+        abs(z_min - PARAMS["SEED_POOL_Z_FLOOR"]) < 0.5
+        and abs(z_max - PARAMS["SEED_POOL_Z_TOP"]) < 0.5,
+        f"z=[{z_min:.2f}, {z_max:.2f}], expected=[{PARAMS['SEED_POOL_Z_FLOOR']}, {PARAMS['SEED_POOL_Z_TOP']}]",
     ))
 
-    # Inner volume: enclosed cavity capacity. We can't easily measure cavity
-    # alone, but mesh.volume is the SHELL volume. Sanity: shell ≈ surface_area * wall.
-    shell_volume = mesh.volume
-    surface_area = mesh.area
-    expected_shell = surface_area / 2 * PARAMS["RESERVOIR_WALL"]  # rough
+    # Centred along disc-bottom Y line.
+    y_center_actual = float((mesh.bounds[0, 1] + mesh.bounds[1, 1]) / 2)
     results.append(CheckResult(
-        "shell_volume_sane",
-        0.5 * expected_shell < shell_volume < 2.0 * expected_shell,
-        f"shell_volume={shell_volume:.0f} mm³, surface_area={surface_area:.0f} mm²",
+        "y_centred_on_disc_bottom",
+        abs(y_center_actual - PARAMS["SEED_POOL_Y_CENTER"]) < 0.5,
+        f"y_center={y_center_actual:.2f}, expected={PARAMS['SEED_POOL_Y_CENTER']}",
     ))
 
     return results
 
 
-def check_clearance(disc_stl: Path, reservoir_stl: Path,
-                    min_mm: float = 5.0, n_samples: int = 4000) -> list[CheckResult]:
-    if not (disc_stl.exists() and reservoir_stl.exists()):
+def check_disc_floor_clearance(disc_stl: Path, pool_stl: Path,
+                               min_mm: float = 0.5,
+                               n_samples: int = 4000) -> list[CheckResult]:
+    """Disc must not break through the pool FLOOR. (Side walls are slotted
+    by design — disc dips in there — so we ignore those.)"""
+    if not (disc_stl.exists() and pool_stl.exists()):
         return [CheckResult("clearance_files", False,
-                            f"missing inputs: {disc_stl}, {reservoir_stl}")]
+                            f"missing inputs: {disc_stl}, {pool_stl}")]
 
     disc = trimesh.load(disc_stl, force="mesh")
-    res = trimesh.load(reservoir_stl, force="mesh")
+    pool = trimesh.load(pool_stl, force="mesh")
 
-    # Sample the reservoir surface uniformly, find each point's nearest
-    # point on the disc surface.
-    pts, _ = trimesh.sample.sample_surface(res, n_samples)
-    closest, distances, _ = trimesh.proximity.closest_point(disc, pts)
-    min_dist = float(distances.min())
-    mean_dist = float(distances.mean())
+    # Sample disc surface, keep only points BELOW the floor's Z.
+    pts, _ = trimesh.sample.sample_surface(disc, n_samples)
+    z_floor = PARAMS["SEED_POOL_Z_FLOOR"]
+    below_floor = pts[pts[:, 2] < z_floor + 1.0]   # 1 mm above floor & lower
+    if len(below_floor) == 0:
+        return [CheckResult(
+            "disc_above_floor",
+            True,
+            f"no disc surface samples within 1 mm of pool floor (z={z_floor})",
+        )]
 
-    # Index of the closest point — useful for diagnostics.
-    idx = int(distances.argmin())
-    near = pts[idx]
+    # Lowest disc point in world frame
+    z_min_disc = float(below_floor[:, 2].min())
+    clearance = z_min_disc - z_floor
 
     return [CheckResult(
-        "reservoir_disc_clearance",
-        min_dist >= min_mm,
-        f"min={min_dist:.2f} mm @ {near.round(2).tolist()}, mean={mean_dist:.2f} mm",
+        "disc_above_floor",
+        clearance >= min_mm,
+        f"disc lowest z={z_min_disc:.2f}, floor z={z_floor}, gap={clearance:.2f} mm",
     )]
 
 
@@ -263,34 +266,34 @@ def main() -> int:
             print(f"[WARN] disc cross-section render failed: {exc}")
 
     print()
-    print("=== Phase 2: reservoir ===")
-    res_stl = ROOT / "stl" / "v4_2" / "reservoir.stl"
-    disc_stl_v2 = ROOT / "stl" / "v4_2" / "disc.stl"
-    res_results = check_reservoir(res_stl)
-    for r in res_results:
+    print("=== Phase 2 V5: seed pool ===")
+    pool_stl = ROOT / "stl" / "v5_2" / "seed_pool.stl"
+    disc_stl_v2 = ROOT / "stl" / "v5_2" / "disc.stl"
+    pool_results = check_seed_pool(pool_stl)
+    for r in pool_results:
         print(r)
 
     print()
-    print("=== Phase 2: disc-reservoir clearance ===")
-    clearance_results = check_clearance(
-        disc_stl_v2, res_stl, min_mm=PARAMS["MIN_CLEARANCE_MM"]
+    print("=== Phase 2 V5: disc-pool floor clearance ===")
+    clearance_results = check_disc_floor_clearance(
+        disc_stl_v2, pool_stl, min_mm=PARAMS["MIN_FLOOR_CLEARANCE_MM"]
     )
     for r in clearance_results:
         print(r)
 
-    if disc_stl_v2.exists() and res_stl.exists():
+    if disc_stl_v2.exists() and pool_stl.exists():
         try:
             disc = trimesh.load(disc_stl_v2, force="mesh")
-            res = trimesh.load(res_stl, force="mesh")
-            combined = trimesh.util.concatenate([disc, res])
+            pool = trimesh.load(pool_stl, force="mesh")
+            combined = trimesh.util.concatenate([disc, pool])
             render_cross_section_png(
-                combined, ROOT / "renders" / "v4_2" / "assembly_cross_section.png"
+                combined, ROOT / "renders" / "v5_2" / "assembly_cross_section.png"
             )
-            print("→ renders/v4_2/assembly_cross_section.png")
+            print("→ renders/v5_2/assembly_cross_section.png")
         except Exception as exc:
             print(f"[WARN] assembly cross-section render failed: {exc}")
 
-    all_results = disc_results + res_results + clearance_results
+    all_results = disc_results + pool_results + clearance_results
     failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 

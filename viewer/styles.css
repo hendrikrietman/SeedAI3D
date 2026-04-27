@@ -45,6 +45,13 @@ h1 {
   color: #2d5016;
 }
 
+.sub {
+  margin: -4px 0 8px;
+  font-size: 11px;
+  color: #777;
+  font-style: italic;
+}
+
 .row {
   display: flex;
   align-items: center;

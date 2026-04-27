@@ -40,7 +40,44 @@ i.e. **the outlet must be ≥17 mm above the pickup-top point**. With 5–8 mm c
 
 ---
 
+## D6 — V5 architecture: vacuum pickup from bottom seed-pool (Phase 2 rewrite)
+
+**Date:** 2026-04-27.
+**Question:** D5 placed pickup and release symmetrically near the disc top (V4-drawing interpretation). Hendrik then directed a complete architecture switch: V4 (gravity-fed top reservoir) → V5 (vacuum pickup from a bottom seed-pool, Monosem/MaterMacc/vSet pattern).
+
+**Decision:** Adopt V5. Concretely:
+
+- Pickup at **θ=270°** (disc bottom): world (0, -29.7, -29.7). Disc dips into an open seed pool.
+- Release at **θ=90°** (disc top): world (0, +29.7, +29.7), directly above the central drop hole.
+- Seed travels **180° along the disc rim** with θ decreasing (Option 1 — front face rises into the release zone).
+- Reservoir is no longer a top funnel. It is a **60 × 40 × 20 mm open bowl** centred at (0, -30, -35), with a V-trough bottom (6 mm strip) so seeds gather along the disc-rim dip line.
+- Vacuum behind the disc draws seeds against the disc FRONT face (the face whose normal has +Y component).
+
+**Why V5 over V4:**
+- **Singulation precision.** Vacuum self-limits to one seed per hole (extra seeds fall back into the pool). Gravity-fed top reservoirs over-feed and need an `afstrijker` to scrape excess.
+- **Zero kinetic energy at pickup.** Seeds in a pool are stationary; vacuum captures them at v=0. Top-reservoir seeds arrive at the disc with several mm/s of velocity from the drop, increasing bounce risk.
+- **Natural reservoir emptying.** Vacuum draws from the lowest point — pool empties uniformly.
+- **Lower CG.** Reservoir mass is now low in the housing.
+- This matches the dominant precision-seeder pattern (Monosem MS, MaterMacc MS-300, Precision Planting vSet, John Deere ExactEmerge).
+
+**Geometric consequences (open issues, see build_log):**
+
+1. *Disc TEETH dip below pool floor.* Tooth tips at α=270° sit at world z=-48.09; pool floor at z=-45 → 3 mm interference. SCAD model digitally seals the floor by clipping the envelope subtraction; physical hardware would need either a lower floor (z=-50) or no teeth at this stage. Validation reports `disc_above_floor: gap=-2.22 mm` until Hendrik picks one.
+2. *Side-wall slots leak.* The disc passes through slots in X=±30 walls. Real Monosem-style sealing brushes are deferred to Phase 3+.
+3. *Released-seed miss confirmed.* At release, tangential velocity is +22 mm/s in +X (5 RPM); free-falling seed lands on the disc back face. Phase 3 deflector is mandatory.
+
+**Consequence for prior decisions:**
+- D4 (outlet clearance trade-off) is now historical — there is no outlet.
+- D5 (pickup θ=110°, release θ=70°) is superseded by this decision.
+
+**Files retired:** `scad/v4_2_reservoir.scad` (deleted from tree, kept in git history).
+**Files added:** `scad/v5_2_seed_pool.scad`, `stl/v5_2/{disc,seed_pool}.stl`, `renders/v5_2/`.
+
+---
+
 ## D5 — Pickup at θ=110°, release at θ=70° (Phase 2 fix)
+
+> *Superseded by D6.* The θ=110°/70° interpretation honoured a possible reading of the V4 drawing but was wrong about the architecture entirely (top reservoir vs bottom pool). Kept here for traceability.
 
 **Date:** 2026-04-27.
 **Question:** The original Phase-2 build placed the release at the disc's LOWEST point (0, −29.7, −29.7) — the geometric "180° opposite" of the pickup. The V4 concept drawing's "Vooraanzicht schijf" panel shows pickup AND release both near the TOP of the disc, symmetric around the Y axis. Seeds travel the LONG way around the rim (~320°), not the short way through the bottom.

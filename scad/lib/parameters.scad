@@ -35,17 +35,15 @@ TOOTH_TIP_FRACTION   = 0.30;   // tooth tip  width as fraction of pitch (trapezo
 DISC_TILT_DEG        = 45;     // rotate([DISC_TILT_DEG, 0, 0])
 DISC_NORMAL          = [0, -sin(DISC_TILT_DEG), cos(DISC_TILT_DEG)];
 
-// Disc-local angle θ for pickup and release. Per the V4 drawing
-// ("Vooraanzicht schijf" detail panel), pickup and release sit symmetrically
-// around the top of the disc (θ=90°), both at HIGH world-Z. The seed travels
-// the LONG way around (~320° CCW) along the outer rim: pickup → bottom → release.
+// V5 architecture (vacuum pickup from bottom seed-pool).
+// Pickup at θ=270° (LOWEST point on pickup circle) — disc dips into seed pool.
+// Release at θ=90° (HIGHEST point) — directly above central drop hole.
+// Seed travels 180° along the disc rim from pickup → release.
 // World coords on pickup-hole circle for any θ:
-//   x = R·cos(θ)
-//   y = R·sin(θ)·cos(tilt)
-//   z = R·sin(θ)·sin(tilt)
-// See docs/decisions.md D5 for the correction history.
-PICKUP_THETA_DEG     = 110;    // pickup, left of top
-RELEASE_THETA_DEG    =  70;    // release, right of top (symmetric)
+//   x = R·cos(θ),  y = R·sin(θ)·cos(tilt),  z = R·sin(θ)·sin(tilt)
+// See docs/decisions.md D6 for the V4→V5 architecture switch.
+PICKUP_THETA_DEG     = 270;    // disc onderkant, dompelt in zaad-pool
+RELEASE_THETA_DEG    =  90;    // disc bovenkant, recht boven centraal gat
 
 PICKUP_POS           = [PICKUP_HOLE_RADIUS * cos(PICKUP_THETA_DEG),
                         PICKUP_HOLE_RADIUS * sin(PICKUP_THETA_DEG) * cos(DISC_TILT_DEG),
@@ -54,10 +52,9 @@ RELEASE_POS          = [PICKUP_HOLE_RADIUS * cos(RELEASE_THETA_DEG),
                         PICKUP_HOLE_RADIUS * sin(RELEASE_THETA_DEG) * cos(DISC_TILT_DEG),
                         PICKUP_HOLE_RADIUS * sin(RELEASE_THETA_DEG) * sin(DISC_TILT_DEG)];
 
-// Disc TOP surface above PICKUP_POS = mid-plane offset by (t/2) along normal.
-PICKUP_TOP_POS       = [PICKUP_POS[0],
-                        PICKUP_POS[1] + DISC_THICKNESS/2 * DISC_NORMAL[1],
-                        PICKUP_POS[2] + DISC_THICKNESS/2 * DISC_NORMAL[2]];
+// Disc FRONT face (the face whose normal has +Y component — seeds press
+// against this face from the pool). Front-normal = -DISC_NORMAL.
+DISC_FRONT_NORMAL    = [0, sin(DISC_TILT_DEG), -cos(DISC_TILT_DEG)];
 
 // Disc TOP surface plane equation in world coords (within disc extent):
 //     z = y + DISC_TOP_Z_OFFSET
@@ -67,23 +64,19 @@ PICKUP_TOP_POS       = [PICKUP_POS[0],
 DISC_TOP_Z_OFFSET    = DISC_THICKNESS * cos(DISC_TILT_DEG);
 
 // ==========================================================================
-// RESERVOIR (Phase 2)
+// SEED POOL (Phase 2 V5) — open bowl at bottom of housing; disc dips in.
 // ==========================================================================
-RESERVOIR_TOP_X      = 60;   // top opening, X
-RESERVOIR_TOP_Y      = 60;   // top opening, Y
-RESERVOIR_OUTLET_DIA = 12;
-RESERVOIR_HEIGHT     = 80;
-RESERVOIR_WALL       = 2;
-
-// Vertical clearance from outlet bottom to the disc-mid PICKUP_POS,
-// directly above the pickup hole. Spec range 5–8 mm; 7.1 mm puts the
-// outlet bottom at world z = 35.0. With the offset pickup (θ=110°),
-// the +Y rim of a Ø16 outer reservoir wall still clips the disc body —
-// see docs/decisions.md D4 for the trade-off and proposed mitigations.
-RESERVOIR_OUTLET_CLEARANCE = 7.1;
-RESERVOIR_OUTLET_POS = [PICKUP_POS[0],
-                        PICKUP_POS[1],
-                        PICKUP_POS[2] + RESERVOIR_OUTLET_CLEARANCE];
+SEED_POOL_X          = 60;     // pool footprint, X
+SEED_POOL_Y          = 40;     // pool footprint, Y (front-back)
+SEED_POOL_DEPTH      = 20;     // pool height, Z
+SEED_POOL_Z_TOP      = -25;    // top of pool walls (just below disc-mid bottom @ -29.7)
+SEED_POOL_Z_FLOOR    = SEED_POOL_Z_TOP - SEED_POOL_DEPTH;   // = -45
+SEED_POOL_Y_CENTER   = -30;    // pool centred along disc-bottom Y line
+SEED_POOL_WALL       = 2;
+SEED_POOL_FILL_Z     = -32;    // approximate seed top when full (~12 mm bed)
+// Bottom-strip width: V-shape narrows in X to gather seeds along the disc-rim
+// dip line — like a Monosem V-trough.
+SEED_POOL_BOTTOM_X   = 6;
 
 // ==========================================================================
 // HOUSING (used in later phases, declared here for reference)
