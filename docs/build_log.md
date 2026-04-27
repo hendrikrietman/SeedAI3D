@@ -588,3 +588,68 @@ PASS at (60.00, −50.00, 55.97, −10.00, −82.79). Updated
 profile through the front wall.
 
 **Tag**: v5.5.1.
+
+---
+
+## V5.5.2 — half-disc footprint pool, wraps disc bottom 180° (2026-04-27)
+
+Stage B of Hendrik's Phase-5 spec: the rectangular 60×40 pool becomes a
+half-disc (radius 55, opening at y=0, footprint y ≤ 0). Wraps the disc
+bottom 180° in plan view — any seed detaching mid-travel whose XY
+projection lands in the half-disc footprint is now caught by the pool.
+
+**Footprint change.** Body geometry switched from
+`cube([60, 40, 33])` to `difference(){ cylinder(r=55,h=33); cube(y>0 half) }`.
+Cavity follows the same pattern: hull from a half-disc of radius
+R_INNER=53 (top opening) down to the existing 4×4 mm V-cone patch at
+(0, -30, floor+2). Floor still z=-50, top still z=-17.
+
+**Why R=55.** Sized to keep the existing tube anchors INSIDE the body:
+- feeder anchor (15, -50, -22): radius √(15² + 50²) = 52.2 < 55 ✓
+- vac    anchor (0, -42, -43): radius 42 < 55 ✓
+Both tubes still emerge through the pool wall (now curved instead of
+flat) — the tube body's back end overlaps the wall by SEED_POOL_WALL+EPS,
+union stays watertight, bore pierces through to the cavity.
+
+**Wall slopes.** With V-cone at (0, -30, -48) and half-disc top R=53:
+- Front edge (toward -Y): bottom (0,-30,-48) → top (0,-53,-16). Slope
+  atan(32/23) = **54°** ✓
+- Back edge (toward +Y): bottom (0,-30,-48) → top (0,0,-16). Slope
+  atan(32/30) = **47°** ✓
+- Side edges (toward ±X): bottom (0,-30,-48) → top (±53,0,-16).
+  Slope atan(32/√(53²+30²)) = **28°** ⚠ below ≥35° spec.
+
+The shallow side slope is a known limitation of the half-disc shape
++ single-point V-cone. Soybeans (rest angle ~25-30°) will roll on
+28° but it's tighter than ideal. Mitigations for v5.5.3+:
+1. Replace single V-cone with a curved trough following the disc rim
+   path projection — seeds drain along the disc-bottom arc.
+2. Tighten R_OUTER to ~40 (gives ~38° side slopes) at the cost of
+   smaller catch area.
+3. Add a rim-following internal rib to break the long side slope.
+
+**Disc-envelope subtraction unchanged.** The disc rim with teeth
+crosses the half-cylinder pool wall at world-XY radius 55 at z=-36.5
+(two crossings per side, at θ_disc=231°/309° on the bottom-half).
+The clipped disc envelope (z ≥ floor+1) carves a slot through the
+curved wall at these crossings — same mechanic as the rectangular
+pool's left/right wall slots.
+
+**STL**: 985v/1982f → 1143v/2294f. Bounds: x[−55, +55] (was [−30,+30]),
+y[−82.79, 0] (was [−82.79, −10]), z[−50, +42.97] unchanged.
+Watertight. Copied to `viewer/models/`.
+
+**Validation**: replaced `y_back_face` check (was y_max≈-10) with
+`y_back_edge` (y_max≈0, the half-disc opening). Updated
+`x_extent_with_tubes` to 2·R_OUTER=110 and `y_front_or_further` to
+≤ -R_OUTER=-55. All seven pool/clearance checks PASS at
+(110.00, −50.00, 42.97, 0.00, −82.79).
+
+**Iso render**: `renders/v5_2/v5_5_2_iso.png`.
+
+**Deferred to v5.5.3+** (per Hendrik's full Phase-5 spec):
+- Drainage rib / curved bottom trough for ≥35° slopes everywhere
+- "Clean cycle" UI button + vacuum-suction animation
+- Seed-loss tracking visualisation (prove zero seed loss between lines)
+
+**Tag**: v5.5.2.

@@ -30,6 +30,7 @@ PARAMS = {
     "DISC_TILT_DEG": 45.0,
     "SEED_POOL_X": 60.0,
     "SEED_POOL_Y": 40.0,
+    "SEED_POOL_R_OUTER": 55.0,
     "SEED_POOL_DEPTH": 33.0,
     "SEED_POOL_Z_TOP": -17.0,
     "SEED_POOL_Z_FLOOR": -50.0,
@@ -211,21 +212,17 @@ def check_seed_pool(stl_path: Path) -> list[CheckResult]:
         f"is_watertight={mesh.is_watertight}",
     ))
 
-    # Pool BODY footprint: width X=60 still holds (feeder at x=+15 OD18 stays
-    # within the +30 wall; vac tube TOP-mounted at x=0, no x extension).
-    # Y and Z extents now exceed the body — feeder extends in (−Y,+Z) at 60°,
-    # vac extends in (−Y,+Z) at 80° (near-vertical from top). Validate by
-    # anchor points, not total extents.
+    # v5.5.2: pool body is a HALF-DISC of radius R_OUTER (=55), centred at
+    # origin in XY, opening at y=0 (footprint y ≤ 0). x extent = 2·R_OUTER.
+    # Tubes extend in -Y/+Z (feeder 60°, vac 80°), so y_min and z_max are
+    # set by the tubes — validate body span, not total tube reach.
     extents = mesh.extents
     results.append(CheckResult(
         "x_extent_with_tubes",
-        abs(extents[0] - PARAMS["SEED_POOL_X"]) < 1.0,
-        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['SEED_POOL_X']} ±1.0",
+        abs(extents[0] - 2 * PARAMS["SEED_POOL_R_OUTER"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{2 * PARAMS['SEED_POOL_R_OUTER']} ±1.0",
     ))
 
-    # Pool floor still at SEED_POOL_Z_FLOOR (= -37); pool top wall still at
-    # SEED_POOL_Z_TOP (= -17), but mesh z_max now extends higher because the
-    # vac tube reaches +Z. Verify z_min exact and z_max ≥ pool top.
     z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
     results.append(CheckResult(
         "z_floor",
@@ -238,20 +235,18 @@ def check_seed_pool(stl_path: Path) -> list[CheckResult]:
         f"z_max={z_max:.2f}, expected ≥ {PARAMS['SEED_POOL_Z_TOP']} (tubes extend higher)",
     ))
 
-    # Front face still at y_min = -50 (or further negative due to tubes
-    # extending in -Y); back face still at y_max ≈ -10.
+    # Half-disc opens at y=0 (back edge); curved front edge sits at
+    # y = -R_OUTER (=−55) at x=0; tubes extend further negative.
     y_min, y_max = float(mesh.bounds[0, 1]), float(mesh.bounds[1, 1])
-    y_front = PARAMS["SEED_POOL_Y_CENTER"] - PARAMS["SEED_POOL_Y"] / 2
-    y_back  = PARAMS["SEED_POOL_Y_CENTER"] + PARAMS["SEED_POOL_Y"] / 2
     results.append(CheckResult(
-        "y_back_face",
-        abs(y_max - y_back) < 0.5,
-        f"y_max={y_max:.2f}, expected≈{y_back}",
+        "y_back_edge",
+        abs(y_max - 0.0) < 0.5,
+        f"y_max={y_max:.2f}, expected≈0 (half-disc opens at y=0)",
     ))
     results.append(CheckResult(
         "y_front_or_further",
-        y_min <= y_front + 0.5,
-        f"y_min={y_min:.2f}, expected ≤ {y_front} (tubes extend in -Y)",
+        y_min <= -PARAMS["SEED_POOL_R_OUTER"] + 0.5,
+        f"y_min={y_min:.2f}, expected ≤ -{PARAMS['SEED_POOL_R_OUTER']} (curved front + tubes)",
     ))
 
     return results

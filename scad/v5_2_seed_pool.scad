@@ -50,21 +50,42 @@ EXPORT_PART          = "all";   // "disc", "seed_pool", or "all"
 // ----- pool primitives -----
 EPS = 0.01;
 
+// v5.5.2: half-disc body. Cylinder of R_OUTER, minus the y>0 half.
+// Pool wraps the disc bottom 180° in plan view.
 module seed_pool_outer_solid() {
-    translate([0, SEED_POOL_Y_CENTER, (SEED_POOL_Z_TOP + SEED_POOL_Z_FLOOR) / 2])
-        cube([SEED_POOL_X, SEED_POOL_Y, SEED_POOL_DEPTH], center = true);
+    translate([0, 0, (SEED_POOL_Z_TOP + SEED_POOL_Z_FLOOR) / 2])
+        difference() {
+            cylinder(r = SEED_POOL_R_OUTER,
+                     h = SEED_POOL_DEPTH, center = true);
+            translate([-SEED_POOL_R_OUTER - 1, 0,
+                       -SEED_POOL_DEPTH / 2 - 1])
+                cube([2 * SEED_POOL_R_OUTER + 2,
+                      SEED_POOL_R_OUTER + 1,
+                      SEED_POOL_DEPTH + 2]);
+        }
 }
 
+// Cavity: hull from a half-disc top opening down to a small V-cone patch
+// centred at (0, SEED_POOL_Y_CENTER) — the V-cone position is unchanged
+// from v5.5.1 because Y_CENTER=-30 gives the steepest front+back wall
+// slopes given the half-disc footprint (front 52°, back 47°). Side walls
+// curve outward to ±R_INNER and have shallower slopes (~28°), flagged in
+// the build log; soybeans roll fine on 28° but a future revision could
+// tighten R_OUTER or add a curved trough along the disc rim path.
 module seed_pool_cavity() {
-    inner_x_top = SEED_POOL_X - 2 * SEED_POOL_WALL;
-    inner_y_top = SEED_POOL_Y - 2 * SEED_POOL_WALL;
-    bottom_x    = SEED_POOL_BOTTOM_X;
-    bottom_y    = SEED_POOL_BOTTOM_Y;
+    bottom_x = SEED_POOL_BOTTOM_X;
+    bottom_y = SEED_POOL_BOTTOM_Y;
     hull() {
-        // top opening (extends slightly above wall top so cut is clean)
-        translate([0, SEED_POOL_Y_CENTER, SEED_POOL_Z_TOP + 1])
-            cube([inner_x_top, inner_y_top, EPS], center = true);
-        // V-cone bottom (narrow in both X and Y → wall slopes >35°)
+        // top opening — inner half-disc, slightly above wall top so cut is clean
+        translate([0, 0, SEED_POOL_Z_TOP + 1])
+            difference() {
+                cylinder(r = SEED_POOL_R_INNER, h = EPS, center = true);
+                translate([-SEED_POOL_R_INNER - 1, 0, -EPS * 2])
+                    cube([2 * SEED_POOL_R_INNER + 2,
+                          SEED_POOL_R_INNER + 1,
+                          EPS * 4]);
+            }
+        // V-cone bottom (4×4 patch above floor)
         translate([0, SEED_POOL_Y_CENTER, SEED_POOL_Z_FLOOR + SEED_POOL_WALL])
             cube([bottom_x, bottom_y, EPS], center = true);
     }

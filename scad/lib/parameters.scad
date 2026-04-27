@@ -92,6 +92,16 @@ SEED_POOL_FILL_Z     = -24;    // approximate seed top when full
 SEED_POOL_BOTTOM_X   = 4;
 SEED_POOL_BOTTOM_Y   = 4;
 
+// v5.5.2: half-disc footprint replaces rectangular pool. The body is now a
+// half-cylinder of radius R_OUTER, opening at y=0 (footprint y ≤ 0). Wraps
+// the disc bottom 180° in plan view → catches seeds detaching mid-travel
+// from any rim-position whose XY-projection lies in the half-disc.
+// R_OUTER = 55 is sized to keep the existing tube anchors INSIDE the body:
+//   feeder anchor (15, -50, -22): radius √(15²+50²)=52.2 < 55 ✓
+//   vac    anchor (0, -42, -43): radius 42 < 55 ✓
+SEED_POOL_R_OUTER    = 55;
+SEED_POOL_R_INNER    = SEED_POOL_R_OUTER - SEED_POOL_WALL;   // = 53
+
 // --------------------------------------------------------------------------
 // FRONT-FACE TUBE PORTS (2026-04-27) — two angled fittings on the operator-
 // facing front face of the pool (y = -50). One is the FEEDER inlet (operator
