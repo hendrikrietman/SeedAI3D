@@ -146,27 +146,47 @@ module hopper() {
 //  at Z = LID_FRONT_Z - LID_THICKNESS. Cutouts where geleider mouth,
 //  pickup zone, and central drop-tube need to pass.
 // =====================================================================
-LID_FRONT_Z      = DISC_THICKNESS / 2 + LID_OFFSET_FROM_DISC;       // +10
-LID_BACK_Z       = LID_FRONT_Z - LID_THICKNESS;                     // +6
-DUST_RING_BACK_Z = LID_BACK_Z;
-DUST_RING_FRONT_Z = LID_BACK_Z - DUST_RING_THICKNESS;               // +3 — sits inside disc-front clearance
+// v5.8.1: lid with wide front face + side rim. The front disc covers the
+// disc area in plan; the side rim extends back from the front-disc edge
+// to wrap around the disc rim like a real housing cover.
+LID_FRONT_Z       = DISC_THICKNESS / 2 + LID_OFFSET_FROM_DISC;      // +14
+LID_BACK_Z        = LID_FRONT_Z - LID_THICKNESS;                     // +8
+LID_RIM_BACK_Z    = LID_BACK_Z - LID_RIM_HEIGHT;                     // -7
+DUST_RING_FRONT_Z = LID_BACK_Z - DUST_RING_THICKNESS;                // +5
 
 module lid_solid() {
-    translate([0, 0, LID_BACK_Z])
-        cylinder(d = LID_OD, h = LID_THICKNESS);
+    union() {
+        // Front disc face
+        translate([0, 0, LID_BACK_Z])
+            cylinder(d = LID_OD, h = LID_THICKNESS);
+        // Side rim — annular cylinder extending back from lid-back-face,
+        // 4 mm thick. Wraps around the disc rim, gives the lid visual
+        // depth so it looks like a sound housing cover.
+        translate([0, 0, LID_RIM_BACK_Z])
+            difference() {
+                cylinder(d = LID_OD, h = LID_RIM_HEIGHT);
+                translate([0, 0, -1])
+                    cylinder(d = LID_OD - 2 * LID_RIM_THICKNESS,
+                             h = LID_RIM_HEIGHT + 2);
+            }
+    }
 }
 
 // Cutouts: pickup zone (θ=270°), release / geleider mouth area (θ=90°),
-// central drop-tube hole. Each is a small rectangle in disc-local X-Y.
+// central drop-tube hole. Cutouts span both the lid front face AND the
+// side rim so the disc rim is exposed at top and bottom for hopper /
+// geleider access.
+LID_CUTOUT_DEPTH = LID_THICKNESS + LID_RIM_HEIGHT + 2;   // 23
+
 module lid_cutouts() {
-    // Pickup-zone window — 40×30 box at θ=270° (disc-local Y=-42 area)
-    translate([-20, -55, LID_BACK_Z - 1])
-        cube([40, 25, LID_THICKNESS + 2]);
-    // Release-zone window — 40×20 box at θ=90° (disc-local Y=+42 area).
-    // Offset slightly toward the geleider mouth (Y_centre=+30 on geleider).
-    translate([-20, 30, LID_BACK_Z - 1])
-        cube([40, 25, LID_THICKNESS + 2]);
-    // Central hole for drop-tube
+    // Pickup-zone window — 60×35 box at θ=270° (wider than before so
+    // the disc-rim teeth at θ=270° are clearly exposed for hopper access).
+    translate([-30, -75, LID_RIM_BACK_Z - 1])
+        cube([60, 35, LID_CUTOUT_DEPTH]);
+    // Release-zone window — at θ=90° area. Sized for geleider mouth + clearance.
+    translate([-30, 40, LID_RIM_BACK_Z - 1])
+        cube([60, 35, LID_CUTOUT_DEPTH]);
+    // Central hole for drop-tube (front face only)
     translate([0, 0, LID_BACK_Z - 1])
         cylinder(d = CENTRAL_HOLE_DIA + 4, h = LID_THICKNESS + 2);
 }
@@ -182,7 +202,7 @@ module lid() {
 module dust_ring_solid() {
     translate([0, 0, DUST_RING_FRONT_Z])
         difference() {
-            cylinder(d = LID_OD, h = DUST_RING_THICKNESS);
+            cylinder(d = DUST_RING_OD, h = DUST_RING_THICKNESS);
             translate([0, 0, -1])
                 cylinder(d = LID_ID_RING, h = DUST_RING_THICKNESS + 2);
         }

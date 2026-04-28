@@ -101,7 +101,7 @@ const RELEASE_POS = new THREE.Vector3(0,  29.698,  29.698);
 const POOL = {
   bottomX: 30, bottomY: 30,
   xCenter: 0, yCenter: -46.67,
-  zFloor: -67, zTop: -47,           // pool surface ≈ disc-rim level
+  zFloor: -61, zTop: -47,           // v5.8.1: floor raised -67 → -61
   fillZ: -49,                        // top of seed pile when full
 };
 

@@ -912,3 +912,46 @@ verified intact (35 references to lifecycle symbols, all unchanged).
   would need a single `union` with proper wall thickness throughout.
 
 **Tag**: v5.8.0. Backup tag: `phase6-pre-housing-backup` at v5.7.0.
+
+## V5.8.1 — Wider/sounder lid + shallower pool (browser eyeball fixes)
+
+Hendrik browser-eyeballed v5.8.0 and called out: "seed basket is far
+below the plate", "inlet is out of the cover", "cover is very slim —
+make it wider and sound, so seeds fall not below or behind the plate."
+
+Three small parametric fixes (no structural redesign):
+
+1. **Lid widened and thickened.** `LID_OD` 144 → 200 (covers entire
+   plate width plus 10 mm bezel). `LID_THICKNESS` 4 → 6. Added a side
+   rim (`LID_RIM_HEIGHT` = 15, `LID_RIM_THICKNESS` = 4) — a 4 mm thick
+   annular cylinder extending 15 mm back from the lid-front-face,
+   wrapping around the disc rim. Cutouts at θ=270° / θ=90° span both
+   the front face and the side rim so the disc rim is exposed at the
+   pickup and release zones; the central hole stays in the front face
+   only. `LID_OFFSET_FROM_DISC` 8 → 12 to keep the now-thicker lid
+   clear of the disc-front face. Lid STL bumped from 272v/552f to
+   400v/808f, x-extent now 200 mm.
+2. **Pool floor raised 6 mm.** `HOPPER_POOL_DEPTH` 20 → 14, so the
+   pool floor moves from world Z=-67 to Z=-61. The plate's front-edge
+   bottom in world is at Z≈-61.7 (plate-local Y=-90, Z=+2.5 after
+   45° tilt), so pool seeds now sit just above that edge instead of
+   ~6 mm below. Visually the pool no longer extends past the plate's
+   front edge.
+3. **Dust-ring OD decoupled from lid OD.** New `DUST_RING_OD` = 144
+   (was implicitly = `LID_OD`). Ring stays sized to the disc-OD-with-
+   teeth + 12 mm clearance for the rubber-seal interface; lid widening
+   doesn't bloat the ring.
+
+**Animation**: untouched (lifecycle code unchanged). `viewer.js`
+`POOL.zFloor` constant updated from -67 to -61 to match the shallower
+pool, otherwise no JS changes.
+
+**Validation**: 44/44 PASS. Hopper bounds shrink Z=[-67,72.69] →
+Z=[-61,72.69]. Lid bounds grow x=[-72,+72] → x=[-100,+100].
+
+**Open items unchanged**: feeder still emerges from hopper-front-face
+rather than from the lid (would need a more substantial redesign with
+the feeder routed through the lid into the hopper from above — flagged
+as future work). Mal-plate disc-recess overlap (D13) still accepted.
+
+**Tag**: v5.8.1.

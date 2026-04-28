@@ -81,10 +81,12 @@ PARAMS = {
     "HOPPER_HEIGHT": 80.0,
     "HOPPER_BOTTOM_Z": -47.0,
     "HOPPER_TOP_Z": 33.0,
-    "HOPPER_POOL_FLOOR_Z": -67.0,
+    "HOPPER_POOL_FLOOR_Z": -61.0,
     "HOPPER_Y_CENTRE": -46.67,
-    "LID_OD": 144.0,
-    "LID_THICKNESS": 4.0,
+    "LID_OD": 200.0,
+    "LID_THICKNESS": 6.0,
+    "LID_RIM_HEIGHT": 15.0,
+    "DUST_RING_OD": 144.0,
     "DUST_RING_THICKNESS": 3.0,
 }
 
@@ -545,7 +547,9 @@ def check_lid(stl_path: Path) -> list[CheckResult]:
 
 
 def check_dust_ring(stl_path: Path) -> list[CheckResult]:
-    """Phase-7 dust-seal ring: NBR rubber annular ring on lid bottom face."""
+    """Phase-7 dust-seal ring: NBR rubber annular ring on lid bottom face.
+    OD decoupled from lid OD in v5.8.1: ring stays at Ø 144 (disc rim
+    sealing radius); lid widened to Ø 200 separately."""
     results: list[CheckResult] = []
     if not stl_path.exists():
         return [CheckResult("file_exists", False, f"missing: {stl_path}")]
@@ -562,8 +566,8 @@ def check_dust_ring(stl_path: Path) -> list[CheckResult]:
     extents = mesh.extents
     results.append(CheckResult(
         "x_extent_OD",
-        abs(extents[0] - PARAMS["LID_OD"]) < 1.0,
-        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['LID_OD']} (ring OD = lid OD)",
+        abs(extents[0] - PARAMS["DUST_RING_OD"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['DUST_RING_OD']} (dust-ring OD)",
     ))
     return results
 

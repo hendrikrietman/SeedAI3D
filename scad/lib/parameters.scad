@@ -214,13 +214,16 @@ HOPPER_BOTTOM_X      = 30;
 HOPPER_BOTTOM_Y      = 30;
 HOPPER_HEIGHT        = 80;
 HOPPER_WALL          = 2;
-HOPPER_POOL_DEPTH    = 20;
+// Pool depth reduced 20→14 in v5.8.1: floor was at z=-67, below the
+// plate's front-edge (world z=-61.7 at plate-local Y=-90, Z=+2.5).
+// New floor z=-61 keeps pool seeds within the plate's vertical extent.
+HOPPER_POOL_DEPTH    = 14;
 // Bottom (narrow) sits centred under the disc-rim θ=270° point at
 // world (0, -46.67, -46.67). Bottom plan-position: x=0, y=-46.67.
 // Bottom Z: at the disc-rim Z so the disc dips into the pool surface.
 HOPPER_BOTTOM_Z      = -47;          // top of pool ≈ disc-rim level
 HOPPER_TOP_Z         = HOPPER_BOTTOM_Z + HOPPER_HEIGHT;        // +33
-HOPPER_POOL_FLOOR_Z  = HOPPER_BOTTOM_Z - HOPPER_POOL_DEPTH;    // -67
+HOPPER_POOL_FLOOR_Z  = HOPPER_BOTTOM_Z - HOPPER_POOL_DEPTH;    // -61
 HOPPER_X_CENTRE      = 0;
 HOPPER_Y_CENTRE      = -46.67;       // = -PICKUP_HOLE_RADIUS · cos(45°) for θ=270°
 
@@ -236,14 +239,24 @@ VAC_ELEV_DEG         = 80;
 VAC_MOUTH_OFFSET_Z   = 8;            // mouth above hopper-narrow-bottom
 
 // --- Protective lid + rubber dust-seal ring ---
-LID_OD               = 144;          // 6 mm > disc OD with teeth (132)
+// v5.8.1: lid widened from Ø 144 → 200 (plate width 180 plus 10 mm bezel
+// each side) and thickened from 4 → 6 mm. Side rim extends 15 mm back
+// from the lid-front-face so the lid wraps around the disc rim like a
+// proper housing cover, not a slim disc. Dust-ring keeps its original
+// Ø 144 outer (sized to disc OD with teeth + clearance), now decoupled
+// from LID_OD.
+LID_OD               = 200;
 LID_ID_RING          = 130;          // dust-ring inner Ø, just inside disc OD
-LID_THICKNESS        = 4;
-LID_OFFSET_FROM_DISC = 8;            // along disc-front-normal direction
+DUST_RING_OD         = 144;          // dust-ring outer Ø — disc OD + 12 mm
+LID_THICKNESS        = 6;
+LID_OFFSET_FROM_DISC = 12;           // along disc-front-normal direction (was 8)
+LID_RIM_HEIGHT       = 15;           // side-rim extends back from lid front
+LID_RIM_THICKNESS    = 4;
 DUST_RING_THICKNESS  = 3;
 // Lid sits in disc-local (front side, +Z direction) at distance LID_OFFSET
 // from disc-front face. Disc-front face at disc-local Z=+2. Lid front at
-// disc-local Z = +2 + LID_OFFSET = +10.
+// disc-local Z = +2 + LID_OFFSET = +14. Lid back at +14 - 6 = +8. Side
+// rim extends from Z=+8 down to Z=+8-15 = -7 (wraps around disc rim).
 
 // ==========================================================================
 // PHASE 6 — DISC-MAL (integrated mal-plate). Replaces standalone Phase-4
