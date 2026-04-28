@@ -1010,3 +1010,58 @@ the lid plane. Either way needs a more substantial SCAD redesign than a
 parametric tweak. Flagged for future iteration.
 
 **Tag**: v5.8.2.
+
+## V5.8.3 — Closed lid ring; 100-seed fill across full hopper volume
+
+Browser eyeball v5.8.2: "seed should stay in the hopper, not at the
+bottom — bottom and upper cover ring closed — no bottom hole in hopper —
+let 100 seeds enter the hopper, after 80 seeds 20 are sucked out by
+vacuum."
+
+Three changes (all parametric/visual; no lifecycle changes):
+
+1. **Lid is a closed annular ring** (no cutouts). The pickup-zone and
+   release-zone slots from v5.8.2 turned out to be unnecessary: in
+   WORLD plan view the lid covers world Y ∈ [-42, -52] at θ=270° (disc
+   teeth area) and Y ∈ [+42, +52] at θ=90°, but the pickup hole
+   (world Y=-29.7) and the geleider mouth (world Y=+30) sit INSIDE the
+   lid's inner ring (which opens at world plan R≈40). So the disc
+   teeth are now fully covered by a closed ring; the working elements
+   are not blocked. Lid STL bounds unchanged; vertex/face count steady.
+
+2. **100 seeds in the hopper.** `POOL_TARGET` 50 → 100, `POOL_REFILL_AT`
+   12 → 20. Cycle: hopper fills to 100, disc picks ~80 over time, when
+   pool reaches 20 the auto-refill brings it back to 100. Matches
+   Hendrik's "100 enter, 80 picked, 20 refilled" pattern.
+
+3. **Seeds spread through the full hopper volume.** The previous
+   `placePoolSeed()` capped seeds at `fillZ = -34` (just above pool
+   surface), so 100 seeds piled densely on the 22×22 mm pool floor and
+   were mostly hidden inside the hopper's narrow bottom. Now `fillZ =
+   -10` (just below hopper top) and the spawn footprint expands with
+   z to match the hopper's funnel cross-section: constant 22×22 mm in
+   the pool zone (z ≤ -32), then linear interpolation up to 50×35 mm
+   at hopper top (z = -7). Seeds now visibly fill the hopper.
+
+**Hopper bottom is closed** — confirmed in v5_7_housing.scad by
+inspection. The pool reservoir is a solid box from z=-42 to z=-31
+(extra 1 mm overlap with the funnel hull above). Pool floor at z=-42
+is solid material (`hopper_outer_solid()`'s pool-box minus
+`hopper_cavity()`'s pool-cavity = wall thickness 2 mm at the floor).
+No leak.
+
+**Animation lifecycle**: untouched. Only the parametric `POOL` block,
+spawn function, and target/refill constants changed.
+
+**STL stats**: hopper unchanged from v5.8.2 (447v/898f). Lid 256v/512f
+(was 240v/472f — the cutouts removed simplified the geometry slightly).
+
+**Validation**: 44/44 PASS.
+
+**Open** (carried over): hopper-to-lid is still visual proximity
+only, not booleaned together. Vac-cleanup tube still retired (its
+"sucks out 20" function from the spec is currently emulated by the
+auto-refill bringing pool back to 100; could be re-added as a separate
+animation if you want the visual).
+
+**Tag**: v5.8.3.

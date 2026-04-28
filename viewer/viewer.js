@@ -99,10 +99,15 @@ const RELEASE_POS = new THREE.Vector3(0,  29.698,  29.698);
 // the disc-rim at θ=270° (world (0, -46.67, -46.67)) dips into the pool
 // surface. Mirrors parameters.scad HOPPER_*.
 const POOL = {
-  bottomX: 22, bottomY: 22,
-  xCenter: 0, yCenter: -30,         // v5.8.2: moved to pickup-hole plan
-  zFloor: -42, zTop: -32,           // pool surface just below disc-back
-  fillZ: -34,                        // top of seed pile when full
+  // v5.8.3: spawn region now covers the full hopper interior (pool floor
+  // up through funnel) so 100 seeds are visible inside the hopper, not
+  // stacked at the floor.
+  bottomX: 22, bottomY: 22,         // narrow (pool) cross-section
+  topX: 50,    topY: 35,            // wide (hopper top) cross-section
+  xCenter: 0,  yCenter: -30,
+  zFloor: -42, zTop: -32,           // pool zone (constant cross-section)
+  zHopperTop: -7,                   // hopper top (open)
+  fillZ: -10,                        // cap seeds just below hopper top
 };
 
 // Phase 6 — disc-mal integrated plate. Pre-tilt frame (= disc-local).
@@ -339,25 +344,37 @@ loadStl('./models/dust_ring.stl', dustRingMat, (m) => { dustRingMesh = m; });
 // ============================================================================
 //  Pool fill — visible seed pile, with refill so the animation never starves
 // ============================================================================
-const POOL_TARGET = 50;
-const POOL_REFILL_AT = 12;
+const POOL_TARGET = 100;        // v5.8.3: 100 seeds enter the hopper
+const POOL_REFILL_AT = 20;      // refill once disc has picked 80, leaving 20
 const poolGroup = new THREE.Group();
 scene.add(poolGroup);
 const poolSeeds = [];
 
 function placePoolSeed(seed) {
-  // Phase 7 hopper pool: rectangular footprint at the funnel narrow
-  // bottom (30×30 mm), centred at (xCenter, yCenter). Seeds layer from
-  // pool floor upward to fillZ. World position only — lifecycle code
-  // unchanged: the pickup logic still picks the highest-Z seed from
-  // poolSeeds[].
-  const halfX = POOL.bottomX / 2 - 2;
-  const halfY = POOL.bottomY / 2 - 2;
-  const layer = Math.floor(poolSeeds.length / 8);
+  // v5.8.3: layer seeds from pool floor up through the funnel. Each
+  // layer's footprint expands as we rise into the funnel zone, matching
+  // the hopper's interior cross-section. Lifecycle code unchanged —
+  // pickup picks the highest-Z seed.
+  const seedsPerLayer = 6;
+  const layer = Math.floor(poolSeeds.length / seedsPerLayer);
   const z_layer = POOL.zFloor + SEED_RADIUS
                 + layer * (SEED_RADIUS * 1.6)
                 + (Math.random() - 0.5) * 1.0;
   const z = Math.min(z_layer, POOL.fillZ);
+  // Footprint at this z: constant in pool zone, linearly widening in
+  // funnel zone (matches the SCAD hopper hull from narrow bottom box
+  // at z=zTop-1 to wide top box at zHopperTop).
+  let footX, footY;
+  if (z <= POOL.zTop) {
+    footX = POOL.bottomX;
+    footY = POOL.bottomY;
+  } else {
+    const t = Math.min(1, (z - POOL.zTop) / (POOL.zHopperTop - POOL.zTop));
+    footX = POOL.bottomX + t * (POOL.topX - POOL.bottomX);
+    footY = POOL.bottomY + t * (POOL.topY - POOL.bottomY);
+  }
+  const halfX = footX / 2 - 2;
+  const halfY = footY / 2 - 2;
   const x = POOL.xCenter + (Math.random() - 0.5) * 2 * halfX;
   const y = POOL.yCenter + (Math.random() - 0.5) * 2 * halfY;
   seed.position.set(x, y, z);

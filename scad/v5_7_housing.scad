@@ -149,26 +149,18 @@ module lid_solid() {
         }
 }
 
-// Cutouts in the ring at θ=270° (hopper access) and θ=90° (geleider
-// release window). Each is a small radial slot through the ring so the
-// disc-rim teeth are exposed at those angular positions for hopper /
-// geleider access. The rest of the ring covers the disc teeth.
-module lid_cutouts() {
-    // Pickup-zone slot — radial gap at θ=270° (disc-local Y < 0 area).
-    // Width 30 mm tangentially (X), depth fully through ring radially (Y).
-    translate([-15, -LID_OD / 2 - 1, LID_BACK_Z - 1])
-        cube([30, LID_OD, LID_THICKNESS + 2]);
-    // Release-zone slot — at θ=90°. Wider (40 mm) to clear geleider mouth.
-    translate([-20, LID_INNER_DIA / 2 - 1, LID_BACK_Z - 1])
-        cube([40, LID_OD / 2 - LID_INNER_DIA / 2 + 2, LID_THICKNESS + 2]);
-}
+// v5.8.3: lid is now a CLOSED annular ring — no cutouts. The pickup and
+// release windows from v5.8.2 were unnecessary: in WORLD plan view the
+// lid covers world Y ∈ [-42, -52] at θ=270° (disc-rim area) and Y ∈
+// [+42, +52] at θ=90°, but the actual functional points (pickup hole at
+// world Y=-29.7, geleider mouth at world Y=+30) sit INSIDE the lid's
+// inner ring (which opens at world R≈40 in plan after tilt). So the
+// closed ring covers the disc teeth without blocking any working
+// element.
 
 module lid() {
     rotate([DISC_TILT_DEG, 0, 0])
-        difference() {
-            lid_solid();
-            lid_cutouts();
-        }
+        lid_solid();
 }
 
 module dust_ring_solid() {
