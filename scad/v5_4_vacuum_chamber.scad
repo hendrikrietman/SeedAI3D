@@ -86,9 +86,13 @@ module vacuum_chamber_pretilt() {
     DEPTH = VAC_CHAMBER_DEPTH;
     WALL  = VAC_CHAMBER_WALL;
 
-    // Sit chamber on disc-back face — z=DISC_THICKNESS/2 is disc back in
-    // pre-tilt. Slight inset (-0.01) avoids zero-volume interface artefacts.
-    translate([0, 0, DISC_THICKNESS / 2 - EPS]) {
+    // Chamber front face sits VAC_CHAMBER_AIR_GAP mm off the disc back face
+    // (v5.6.1). z=DISC_THICKNESS/2 is the disc-back surface in pre-tilt;
+    // adding AIR_GAP pushes the chamber outward, leaving a clean 1 mm
+    // mechanical clearance for a wiper/lip seal that real hardware will
+    // need. The post-mirror+tilt orientation puts this gap on the chamber
+    // (operator-far) side of the disc, exactly as in physical machines.
+    translate([0, 0, DISC_THICKNESS / 2 + VAC_CHAMBER_AIR_GAP]) {
         difference() {
             // Outer shell: full annular sector (R_in..R_out, depth DEPTH,
             // sector x ≤ 0).

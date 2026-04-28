@@ -420,9 +420,12 @@ const ANCHOR = {
   // disc_plane_eq is < 0 (chamber-side); seeds enter from eq>0 side and
   // descend through it. Position itself is unchanged by the flip.
   geleiderMouth: new THREE.Vector3(0, GELEIDER.mouthYCenter, GELEIDER.mouthZ),
-  // Vacuum chamber centroid (post-FLIP): SCAD-validated (-26.67, +6.67, -6.67).
-  // disc_plane_eq = -9.43 < 0 → chamber-side, opposite of seeds.
-  chamber: new THREE.Vector3(-26.67, 6.67, -6.67),
+  // Vacuum chamber centroid (post-FLIP, v5.6.1 with 1 mm air gap):
+  // SCAD-validated (-26.67, +7.38, -7.38). disc_plane_eq ≈ -10.43 < 0 →
+  // chamber-side, opposite of seeds. Pre-v5.6.1 value was (-26.67, +6.67,
+  // -6.67) at zero gap; the +0.71/−0.71 shift along the back-normal is
+  // exactly 1 mm × sin/cos 45°.
+  chamber: new THREE.Vector3(-26.67, 7.38, -7.38),
 };
 
 function meshCentroid(mesh) {

@@ -710,3 +710,33 @@ Phase 6.
 
 **Tag**: v5.6.0. Also tagging `phase5-backup` per Hendrik's request as
 the rollback point before Phase 6 (gear drive + motor mount) starts.
+
+## V5.6.1 — Vacuum chamber 1 mm air gap (2026-04-28)
+
+Resolves the chamber-air-gap question flagged in the second audit. The
+Phase-4 spec mentioned 1.5 mm; the existing model used 0.01 mm (an
+EPS sliver, effectively zero). Hendrik chose 1 mm — middle of the
+real-machine range (Monosem/MaterMacc typical 0.5–1 mm with PTFE wiper),
+small enough to keep vacuum loss across the seal manageable.
+
+**Implementation.** New `VAC_CHAMBER_AIR_GAP = 1.0` in
+`parameters.scad`. In `v5_4_vacuum_chamber.scad`, the chamber-front
+translate changed from `DISC_THICKNESS / 2 - EPS` to
+`DISC_THICKNESS / 2 + VAC_CHAMBER_AIR_GAP`, pushing the entire chamber
+1.01 mm farther from the disc back face (post-mirror+tilt → 1 mm gap
+on the operator-far side). Cavity inset logic unchanged.
+
+**Geometric impact.** Chamber STL 392v/780f, watertight, sector-x range
+[−50, 0] unchanged. Centroid shifted from (−26.67, +6.67, −6.67) to
+(−26.67, +7.38, −7.38) — exactly +0.71/−0.71 along the disc-back-normal
+(0, +sin45°, −cos45°), which equals 1 mm × sin/cos 45° as predicted.
+`disc_plane_eq` = −10.44 (was −9.43); still well clear of the seed-side
+half-space.
+
+**Anchor update.** `viewer.js` `ANCHOR.chamber` updated to the new
+expected centroid; the on-load anchor verification keeps PASSing within
+its 2.0 mm tolerance.
+
+**Validation**: 36/36 PASS.
+
+**Tag**: v5.6.1.

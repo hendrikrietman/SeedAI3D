@@ -206,6 +206,12 @@ VAC_CHAMBER_R_IN     = 30;    // just inside the pickup-hole circle (R=42)
 VAC_CHAMBER_R_OUT    = 50;    // just outside the pickup-hole circle
 VAC_CHAMBER_DEPTH    = 8;     // back from disc-back face
 VAC_CHAMBER_WALL     = 2;     // shell wall thickness (chamber is hollow inside)
+// Air gap between disc back face and chamber front (v5.6.1, 2026-04-28).
+// Real disc-vacuum machines (Monosem, MaterMacc) use 0.5–1 mm with a PTFE
+// wiper or rubber lip riding the gap. 1 mm gives manufacturing tolerance
+// + thermal expansion clearance without burning much suction across the
+// seal. Replaces the EPS=0.01 mm sliver that used to sit in this slot.
+VAC_CHAMBER_AIR_GAP  = 1.0;
 VAC_NIPPLE_DIA       = 12;    // Ø12 hose connection
 VAC_NIPPLE_LENGTH    = 30;    // sticks out 30 mm along disc-back-normal
 VAC_SECTOR_START_DEG = 90;    // sector angular range (disc-local), inclusive
