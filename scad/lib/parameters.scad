@@ -277,9 +277,21 @@ DUST_RING_THICKNESS  = 3;
 // ==========================================================================
 
 // --- Mal-plate body ---
-MAL_PLATE_X            = 180;   // plate width (in plate-local X')
-MAL_PLATE_Y            = 180;   // plate height (in plate-local Y')
+// v5.8.5: round plate replaces the original 180×180 square. OD = disc
+// OD with teeth (132) + 2 × 10 mm radial margin = 152 mm. Plate
+// thickness unchanged. Looks like a "round seed element" rather than
+// a tile. 4 clip posts on plate-front retain the lid via M3 screws.
+MAL_PLATE_OD           = 152;
+MAL_PLATE_X            = MAL_PLATE_OD;   // bounding-box width (validation back-compat)
+MAL_PLATE_Y            = MAL_PLATE_OD;   // bounding-box height (validation back-compat)
 MAL_PLATE_THICKNESS    = 15;    // total plate thickness along disc-axis (Z')
+
+// --- Lid retention clips (4 cylindrical posts on plate-front) ---
+MAL_CLIP_R             = 72;             // just outside lid OD (140 → R=70)
+MAL_CLIP_OD            = 10;
+MAL_CLIP_HEIGHT        = 14;             // reaches past lid front face
+MAL_CLIP_BORE          = 3.2;            // M3 screw clearance
+MAL_CLIP_ANGLES        = [45, 135, 225, 315];  // four 45° posts, off main features
 // Disc-recess: circular cut into plate-front-face. Disc OD with teeth = 132,
 // recess inner Ø = 134 → 1 mm radial clearance.
 MAL_DISC_RECESS_DIA    = 134;

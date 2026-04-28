@@ -86,8 +86,9 @@ module annular_sector_xneg(r_in, r_out, h, z) {
 //  Mal-plate solid before any cuts.
 // =====================================================================
 module mal_plate_solid() {
-    translate([-MAL_PLATE_X / 2, -MAL_PLATE_Y / 2, MAL_Z_BACK])
-        cube([MAL_PLATE_X, MAL_PLATE_Y, MAL_PLATE_THICKNESS]);
+    // v5.8.5: round plate (was 180×180 square), OD=152.
+    translate([0, 0, MAL_Z_BACK])
+        cylinder(d = MAL_PLATE_OD, h = MAL_PLATE_THICKNESS);
 }
 
 // =====================================================================
@@ -187,6 +188,22 @@ module mal_hose_nipple_bore() {
 }
 
 // =====================================================================
+//  Lid retention clips (v5.8.5) — 4 cylindrical posts on plate-front,
+//  each with an M3 clearance bore. Operator screws lid through these.
+// =====================================================================
+module mal_clips() {
+    for (theta = MAL_CLIP_ANGLES)
+        rotate([0, 0, theta])
+            translate([MAL_CLIP_R, 0, MAL_Z_FRONT - EPS])
+                difference() {
+                    cylinder(d = MAL_CLIP_OD, h = MAL_CLIP_HEIGHT);
+                    translate([0, 0, -1])
+                        cylinder(d = MAL_CLIP_BORE,
+                                 h = MAL_CLIP_HEIGHT + 2);
+                }
+}
+
+// =====================================================================
 //  Mal-plate complete (pre-tilt).
 // =====================================================================
 module mal_plate_pretilt() {
@@ -201,6 +218,7 @@ module mal_plate_pretilt() {
             mal_hose_nipple_bore();
         }
         mal_hose_nipple();
+        mal_clips();
     }
 }
 

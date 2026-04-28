@@ -59,8 +59,9 @@ PARAMS = {
     "DROP_TUBE_ID": 24.0,
     "DROP_TUBE_Z_TOP": -6.0,
     "DROP_TUBE_Z_BOTTOM": -52.0,
-    "MAL_PLATE_X": 180.0,
-    "MAL_PLATE_Y": 180.0,
+    "MAL_PLATE_OD": 152.0,
+    "MAL_PLATE_X": 152.0,
+    "MAL_PLATE_Y": 152.0,
     "MAL_PLATE_THICKNESS": 15.0,
     "MAL_DISC_RECESS_DIA": 134.0,
     "MAL_CHAMBER_R_IN": 32.0,
@@ -617,18 +618,20 @@ def check_disc_mal(stl_path: Path, disc_stl: Path) -> list[CheckResult]:
         f"is_watertight={mesh.is_watertight}",
     ))
 
-    # X extent: plate width unchanged by X-tilt = 180.
+    # X extent: round plate (v5.8.5) OD=152, but motor cutout at θ=180°
+    # carves a notch into the -X edge so x_min is closer to -73 than -76.
+    # Allow 4 mm tolerance (cutout subtraction reduces nominal extent).
     extents = mesh.extents
     results.append(CheckResult(
         "x_extent",
-        abs(extents[0] - PARAMS["MAL_PLATE_X"]) < 1.0,
-        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['MAL_PLATE_X']}",
+        abs(extents[0] - PARAMS["MAL_PLATE_OD"]) < 4.0,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['MAL_PLATE_OD']} ±4 (motor cutout + clips)",
     ))
 
-    # Y/Z extents: plate 180×15 tilted 45° gives 180·cos45° + 15·sin45° = 138 mm.
-    # Plus the hose nipple sticks out a bit further in -Z direction (post-tilt
-    # plate-back-normal). Use a generous range.
-    expected_yz = 180 * math.cos(math.radians(45)) + 15 * math.sin(math.radians(45))
+    # Y/Z extents: round plate OD=152 tilted 45° gives 152·cos45° +
+    # 15·sin45° + clip-post-height·cos(...) ≈ 117 mm. Plus hose nipple
+    # in -Z direction. Wide range.
+    expected_yz = PARAMS["MAL_PLATE_OD"] * math.cos(math.radians(45)) + 15 * math.sin(math.radians(45))
     results.append(CheckResult(
         "y_extent",
         extents[1] >= expected_yz - 1.0 and extents[1] <= expected_yz + 30,
