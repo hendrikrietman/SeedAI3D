@@ -740,3 +740,79 @@ its 2.0 mm tolerance.
 **Validation**: 36/36 PASS.
 
 **Tag**: v5.6.1.
+
+## V5.7.0 — Phase 6: integrated disc-mal element (2026-04-28)
+
+Major architectural shift per Hendrik's Phase-6 spec: consolidate the
+standalone Phase-4 vacuum chamber and parts of Phase 5 into a single
+3D-printable plate ("mal-plate") that holds the disc, drives it, and
+provides vacuum suction.
+
+**Architectural changes (D11, D12):**
+- Mal-plate is now the central structural element. Standalone Phase-4
+  vacuum chamber retired (archived in `scad/archive/`).
+- Phase 5 (recovery bowl, clean-cycle) discarded per Hendrik's option
+  (c). Will be rebuilt around the mal-plate. Recovery bowl SCAD/STL
+  archived; clean-cycle UI button kept (UI-only, no geometry tie).
+- Phase 7 (edge-roller bearings) retired. Disc floats in the plate
+  recess with 0.5 mm front + back clearance and an O-ring providing
+  rear retention.
+
+**Mal-plate geometry (`scad/v5_6_disc_mal.scad`):**
+- Body 180 × 180 × 15 mm tilted 45° around world-X.
+- Disc-recess Ø 134 × 5 mm deep on plate-front; disc sits with 0.5 mm
+  clearance front and back.
+- Vacuum chamber as cavity inside plate: 180° sector R=32..52, depth 8,
+  back wall 2 mm. Centred on R=42 pickup circle (Phase 4 was R=30..50,
+  off-centre; new range gives 10 mm margin each side).
+- O-ring groove on recess-back-wall: ISO-3601 face-seal for 2.5 mm NBR
+  cord, 3.2 wide × 1.9 deep. Path follows chamber perimeter (outer arc
+  R=53, inner R=31, end straights at θ=90°/270°).
+- Motor cut-out 36 × 36 mm at θ=180°, plate-through. Pinion centre at
+  world (-75, 0, 0). Shaft bore Ø 7 (5 mm shaft + 1 mm clearance × 2).
+- Hose nipple Ø 12 OD / Ø 8 ID × 30 mm long on plate-back at chamber
+  midpoint (-42, 0).
+
+**Drive (visual model, not for FEA):**
+- 20T pinion at module 1.5 (OD ≈ 33). Trapezoidal teeth matching the
+  disc's trapezoid scheme. Pitch radius 15, centre at X=-75.
+- NEMA17 stepper body modelled as a 42 × 42 × 47 mm box behind the
+  plate-back face. Animation rotates pinion at 3× disc rate (60T/20T)
+  in opposite direction (external mesh).
+- Per spec note: TMC2208 driver for silent operation (€8); total motor
+  + driver ≈ €25–30 from Aliexpress. Driver electronics not modelled.
+
+**STL stats** (all watertight):
+- mal_plate: 705 v / 1410 f, bounds x[-90,+90] y[-65,+72] z[-72,+65]
+  (post-tilt); centroid (0.12, +4.67, -4.67), eq=-6.61 → disc-back side.
+- pinion: 424 v / 848 f, centroid (-75.00, 0.00, 0.00) on disc axis.
+- motor: 8 v / 12 f (axis-aligned box), centroid (-75, +25.46, -25.46).
+
+**Validation**: 35/35 PASS. New checks: disc_mal x_extent, y_extent,
+z_extent, centroid_on_back_side, disc_clearance; pinion centre_x_at_-75,
+centre_yz_near_axis, x_extent.
+
+**Viewer changes:**
+- Removed `vacuum_chamber.stl` and `recovery_bowl.stl` loads; removed
+  `Vacuum-kamer` and `Recovery bowl` toggles.
+- Added `mal_plate.stl`, `pinion.stl`, `motor.stl` loads with new
+  toggles. Added pinion rotation in the animation loop at +3× disc
+  rate (opposite direction).
+- ANCHOR.chamber removed (chamber is no longer a separate STL).
+- Title and section header updated to "Phase 6 (integrated disc-mal
+  element)".
+
+**Iso render**: `renders/v5_6/v5_6_iso.png`.
+
+**Open items / deferred:**
+- Phase 5 components (bowl, feeder/vac-cleanup tubes, clean cycle) need
+  to be rebuilt with M3 attachment points to the mal-plate.
+- Real involute pinion sized to disc's actual trapezoid teeth (effective
+  module ~2 vs spec module 1.5) — fix when ordering / printing the real
+  drive train.
+- Disc retention long-term: PTFE radial insert vs slop in plain recess.
+  Decide after first physical print.
+- Browser eyeball verification of pinion rotation, mal-plate cross-
+  section view, and chamber visual.
+
+**Tag**: v5.7.0.

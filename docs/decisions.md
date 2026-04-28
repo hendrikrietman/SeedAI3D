@@ -222,6 +222,116 @@ vac tube tilted 80° top-mount), `validation/geometry_check.py`
 
 ---
 
+## D11 — Integrated disc-mal element (Phase 6)
+
+**Date:** 2026-04-28.
+**Question:** Phase 4 (vacuum chamber) and Phase 5 (recovery bowl, feeder
++ vac-cleanup tubes, clean cycle) shipped as separate components, each
+with its own SCAD source and its own attachment to the housing. Hendrik
+re-scoped Phase 6 to consolidate everything disc-related into ONE
+3D-printable element ("mal-plate"): a flat plate that holds the disc
+(via a circular recess), drives it (NEMA17 stepper + 20T pinion engaging
+the disc tooth-rim), and provides vacuum suction (180° arc-sector
+cavity inside the plate, sealed against the disc-back face by an O-ring
+in a groove on the recess-back-wall).
+
+**Decision:** Adopt the integrated mal-plate. Concretely:
+
+- Plate body 180 × 180 × 15 mm in plate-local frame; tilted 45° around
+  world-X to match the disc.
+- Disc-recess: cylindrical pocket Ø 134 × 5 mm deep on the plate-front
+  face. Disc floats in the recess with 0.5 mm front and back clearance.
+- Vacuum chamber: cavity inside the plate, 180° sector covering θ ∈
+  [90°, 270°] through 180° (world x_local ≤ 0). Radii moved 2 mm outward
+  from Phase 4 (R = 32..52, was 30..50) so the R=42 pickup circle sits
+  centred (10 mm margin each side instead of 12/8).
+- O-ring groove on the recess-back-wall (the chamber-front-wall in the
+  chamber sector): ISO-3601 face-seal style for 2.5 mm NBR cord, 3.2 mm
+  wide × 1.9 mm deep. Path follows the chamber perimeter (outer arc R=53,
+  inner arc R=31, two end straights). Cord protrudes 0.5 mm compressed —
+  this IS the air gap between disc-back and chamber-front-wall.
+- Motor cut-out at θ=180°: 36 × 36 mm rectangular opening through the
+  plate. Drive pinion 20T m=1.5 (OD ≈ 33) at world (-75, 0, 0).
+- Hose nipple Ø 12 OD × 30 mm long, sticks out plate-back at chamber
+  midpoint (-42, 0, plate-back).
+
+**Why over keeping components separate:**
+- Single printable part replaces 2-3 separate prints + an assembly step.
+- The chamber-disc seal is geometrically tied to the recess (via the
+  O-ring groove path), so the plate is the natural place for it.
+- Matches commercial precision-seeder design (Monosem, MaterMacc, vSet)
+  where the disc rotates inside an integrated frame.
+- All other components (bowl, geleider, drop-tube, pool) attach to the
+  plate via M3/M5 inserts, not to the housing — single structural
+  reference.
+
+**Why over the standalone Phase-4 chamber:**
+- The standalone chamber needed a back wall (modeled), a seal interface
+  (implicit), and four bolts to attach to a hypothetical housing. The
+  mal-plate IS that housing wall, with the chamber as a cavity inside it.
+- The 1 mm air gap from v5.6.1 (translate-based) is replaced by the
+  O-ring's 0.5 mm compressed protrusion — geometrically determined by
+  the seal, not a free parameter.
+
+**Files retired:** `scad/v5_4_vacuum_chamber.scad` and
+`scad/v5_5_recovery_bowl.scad` moved to `scad/archive/`. Their STLs
+deleted from `stl/` and `viewer/models/`. The Phase-5 work (bowl,
+clean-cycle UI) will be rebuilt on top of the mal-plate (per Hendrik's
+"option (c) discard Phase 5"); the clean-cycle button stays in the
+viewer for now since it's UI-only.
+
+**Files added:** `scad/v5_6_disc_mal.scad`, `stl/v5_6/mal_plate.stl`,
+`stl/v5_6/pinion.stl`, `stl/v5_6/motor.stl`.
+
+**Geometric trade-offs noted but not blocking:**
+- Disc teeth are trapezoidal (not involute) at effective module ~2.
+  Pinion is also trapezoidal, but specified at module 1.5. Mesh isn't
+  geometrically perfect but visually plausible — this is a visualisation
+  model, not a CFD/FEA target.
+- Pinion centre at X=-75 puts pinion teeth tips at X=-58.5, 1.5 mm past
+  the disc OD-without-teeth (R=60). They mesh with the disc tooth-rim
+  band in this region. Physical hardware will need a real involute
+  pinion sized to match the actual disc tooth pitch.
+
+---
+
+## D12 — Disc retention without external bearings (Phase 6)
+
+**Date:** 2026-04-28.
+**Question:** CLAUDE.md D2.1 set Phase 7 = "edge rollers (3× 608ZZ)"
+as default for disc support. Phase 6 mal-plate makes that scheme
+unnecessary by floating the disc in the recess.
+
+**Decision:** Disc is held by:
+- Front: lip on plate-front-face (the recess opening, Ø < disc OD by
+  the front clearance). Prevents the disc falling forward.
+- Back: O-ring in groove on recess-back-wall. The cord pressure
+  + the static plate-back-wall behind the chamber prevents the disc
+  falling backward. (Compressed cord seats firmly against disc-back.)
+- Radial: 1 mm clearance between disc OD-with-teeth (132) and recess
+  ID (134). Disc rotates freely on a film of dust/lubricant. Real
+  hardware will need either a low-friction insert (PTFE ring at the
+  recess wall) or a small radial bearing race — TBD when first prints
+  show wear behaviour.
+
+**Why over edge rollers:**
+- Three external 608ZZ rollers add complexity, cost, and assembly time.
+- The disc is large (Ø 132, 4 mm thick) and light — radial loads from
+  vacuum + gear mesh are small compared to roller-bearing capacity.
+- Mal-plate recess approach matches commercial seeders (Monosem MS,
+  MaterMacc MS-300) which do not use edge rollers either.
+- One fewer phase to build (Phase 7 retired).
+
+**Consequence:** Phase 7 (edge-roller bearings) is **retired**.
+CLAUDE.md plan and `docs/decisions.md` D2.1 superseded.
+
+**Open**: When the first physical print shows whether the recess +
+O-ring + disc weight is enough to keep the disc rotating without slop,
+we'll know if a radial PTFE insert is needed. Hendrik flagged this is
+something to revisit when Phase 7 would have been built.
+
+---
+
 ## D3 — Three.js vendoring strategy (Phase 1)
 
 **Decision:** Vendor only the three files we use (`three.module.js`, `OrbitControls.js`, `STLLoader.js`) into `viewer/vendor/`, total 1.3 MB. Resolve via importmap.

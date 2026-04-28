@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PROTISEM V5 — Phase 5 (recovery bowl + clean cycle)</title>
+  <title>PROTISEM V5 — Phase 6 (integrated disc-mal element)</title>
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     {
@@ -18,8 +18,8 @@
   <div id="canvas-host"></div>
 
   <section id="controls" class="panel">
-    <h1>PROTISEM V5 · Phase 5</h1>
-    <p class="sub">Top-half recovery bowl + self-cleaning vacuum cycle</p>
+    <h1>PROTISEM V5 · Phase 6</h1>
+    <p class="sub">Integrated mal-plate + NEMA17 + 20T pinion + integrated chamber</p>
 
     <div class="row">
       <label for="rpm">Disc RPM</label>
@@ -82,20 +82,26 @@
     </div>
     <div class="row">
       <label class="toggle">
-        <input id="show-vacuum-chamber" type="checkbox" checked />
-        Vacuum-kamer (transparant)
+        <input id="show-mal-plate" type="checkbox" checked />
+        Mal-plate (integrated chamber)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-pinion" type="checkbox" checked />
+        Pinion (20T, 3:1 reduction)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-motor" type="checkbox" checked />
+        Motor (NEMA17 body)
       </label>
     </div>
     <div class="row">
       <label class="toggle">
         <input id="show-vacuum-glow" type="checkbox" checked />
         Vacuum-glow (active hole markers)
-      </label>
-    </div>
-    <div class="row">
-      <label class="toggle">
-        <input id="show-recovery-bowl" type="checkbox" checked />
-        Recovery bowl (top-half catch)
       </label>
     </div>
     <div class="row">

@@ -59,19 +59,21 @@ PARAMS = {
     "DROP_TUBE_ID": 24.0,
     "DROP_TUBE_Z_TOP": -6.0,
     "DROP_TUBE_Z_BOTTOM": -52.0,
-    "VAC_CHAMBER_R_IN": 30.0,
-    "VAC_CHAMBER_R_OUT": 50.0,
-    "VAC_CHAMBER_DEPTH": 8.0,
-    "VAC_CHAMBER_WALL": 2.0,
-    "VAC_NIPPLE_DIA": 12.0,
-    "VAC_NIPPLE_LENGTH": 30.0,
-    "VAC_SECTOR_START_DEG": 90.0,
-    "VAC_SECTOR_END_DEG": 270.0,
-    "RECOVERY_BOWL_R_OUTER": 55.0,
-    "RECOVERY_BOWL_WALL": 2.0,
-    "RECOVERY_BOWL_Z_FLOOR": 22.0,
-    "RECOVERY_BOWL_Z_TOP": 50.0,
-    "RECOVERY_BOWL_DISC_CLEARANCE": 3.0,
+    "MAL_PLATE_X": 180.0,
+    "MAL_PLATE_Y": 180.0,
+    "MAL_PLATE_THICKNESS": 15.0,
+    "MAL_DISC_RECESS_DIA": 134.0,
+    "MAL_CHAMBER_R_IN": 32.0,
+    "MAL_CHAMBER_R_OUT": 52.0,
+    "MAL_NIPPLE_OD": 12.0,
+    "MAL_NIPPLE_LENGTH": 30.0,
+    "PINION_TEETH": 20,
+    "PINION_OD": 33.0,
+    "PINION_PITCH_R": 15.0,
+    "PINION_THICKNESS": 8.0,
+    "PINION_CENTRE_X": -75.0,
+    "MOTOR_BODY_SIZE": 42.0,
+    "MOTOR_BODY_LENGTH": 47.0,
 }
 
 
@@ -451,6 +453,118 @@ def check_drop_tube(stl_path: Path) -> list[CheckResult]:
     return results
 
 
+def check_disc_mal(stl_path: Path, disc_stl: Path) -> list[CheckResult]:
+    """Phase-6 integrated mal-plate. Plate 180×180×15 mm tilted 45° around
+    world-X. Validates bounding box, watertightness, and that the plate
+    bulk sits on the disc-back side post-tilt (centroid eq < 0)."""
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # X extent: plate width unchanged by X-tilt = 180.
+    extents = mesh.extents
+    results.append(CheckResult(
+        "x_extent",
+        abs(extents[0] - PARAMS["MAL_PLATE_X"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['MAL_PLATE_X']}",
+    ))
+
+    # Y/Z extents: plate 180×15 tilted 45° gives 180·cos45° + 15·sin45° = 138 mm.
+    # Plus the hose nipple sticks out a bit further in -Z direction (post-tilt
+    # plate-back-normal). Use a generous range.
+    expected_yz = 180 * math.cos(math.radians(45)) + 15 * math.sin(math.radians(45))
+    results.append(CheckResult(
+        "y_extent",
+        extents[1] >= expected_yz - 1.0 and extents[1] <= expected_yz + 30,
+        f"y_extent={extents[1]:.2f}, expected ~{expected_yz:.1f} (+nipple ≤30)",
+    ))
+    results.append(CheckResult(
+        "z_extent",
+        extents[2] >= expected_yz - 1.0 and extents[2] <= expected_yz + 30,
+        f"z_extent={extents[2]:.2f}, expected ~{expected_yz:.1f} (+nipple ≤30)",
+    ))
+
+    # Centroid sits on the disc-back side post-tilt: eq = -sin45°·y + cos45°·z < 0.
+    cx, cy, cz = mesh.centroid
+    eq = -math.sin(math.radians(45)) * cy + math.cos(math.radians(45)) * cz
+    results.append(CheckResult(
+        "centroid_on_back_side",
+        eq < 0.0,
+        f"centroid=({cx:.2f},{cy:.2f},{cz:.2f}), disc_plane_eq={eq:.2f} "
+        f"(expect <0 — plate bulk behind disc)",
+    ))
+
+    # Plate must clear the disc rim by ≥ MAL clearance (1 mm radial in the
+    # recess — recess Ø134, disc OD 132). Sample plate, check distance to
+    # disc.
+    if disc_stl.exists():
+        disc = trimesh.load(disc_stl, force="mesh")
+        pts, _ = trimesh.sample.sample_surface(mesh, 4000)
+        _, dists, _ = trimesh.proximity.closest_point(disc, pts)
+        min_d = float(dists.min())
+        # 0.5 mm air gap between disc-back and recess-back-wall (O-ring fills
+        # it). Tolerate the same $fn=64 chord error as the bowl validation.
+        results.append(CheckResult(
+            "disc_clearance",
+            min_d >= 0.5 - 0.15,
+            f"min={min_d:.3f} mm, required≥0.5 (back clearance + O-ring gap)",
+        ))
+
+    return results
+
+
+def check_pinion(stl_path: Path) -> list[CheckResult]:
+    """Phase-6 drive pinion: 20T module 1.5, OD≈33, centre at world X=-75
+    (in disc-local). Pinion axis = disc-axis-of-rotation."""
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # Centroid X should be at PINION_CENTRE_X (Y/Z near 0 by tilt symmetry).
+    cx, cy, cz = mesh.centroid
+    results.append(CheckResult(
+        "centre_x_at_minus_75",
+        abs(cx - PARAMS["PINION_CENTRE_X"]) < 0.5,
+        f"centroid x={cx:.2f}, expected={PARAMS['PINION_CENTRE_X']}",
+    ))
+    results.append(CheckResult(
+        "centre_yz_near_axis",
+        abs(cy) < 0.5 and abs(cz) < 0.5,
+        f"centroid (y,z)=({cy:.2f},{cz:.2f}), expected (0,0) on disc axis",
+    ))
+
+    # Bounding box: pinion is a thin cylinder of OD≈33 tilted 45° around X.
+    # X-extent: tilt around X leaves X unchanged → just the pinion OD.
+    extents = mesh.extents
+    expected_x = PARAMS["PINION_OD"]
+    results.append(CheckResult(
+        "x_extent",
+        abs(extents[0] - expected_x) < 0.5,
+        f"x_extent={extents[0]:.2f}, expected≈{expected_x} (pinion OD)",
+    ))
+    return results
+
+
 def check_vacuum_chamber(stl_path: Path) -> list[CheckResult]:
     results: list[CheckResult] = []
     if not stl_path.exists():
@@ -640,23 +754,23 @@ def main() -> int:
         print(r)
 
     print()
-    print("=== Phase 4 V5: vacuum chamber ===")
-    vac_stl = ROOT / "stl" / "v5_4" / "vacuum_chamber.stl"
-    vac_results = check_vacuum_chamber(vac_stl)
-    for r in vac_results:
+    print("=== Phase 6 V5: disc-mal (integrated plate) ===")
+    mal_stl = ROOT / "stl" / "v5_6" / "mal_plate.stl"
+    mal_results = check_disc_mal(mal_stl, disc_stl_v2)
+    for r in mal_results:
         print(r)
 
     print()
-    print("=== Phase 5 V5: recovery bowl ===")
-    bowl_stl = ROOT / "stl" / "v5_5" / "recovery_bowl.stl"
-    bowl_results = check_recovery_bowl(bowl_stl, disc_stl_v2)
-    for r in bowl_results:
+    print("=== Phase 6 V5: drive pinion ===")
+    pinion_stl = ROOT / "stl" / "v5_6" / "pinion.stl"
+    pinion_results = check_pinion(pinion_stl)
+    for r in pinion_results:
         print(r)
 
     all_results = (disc_results + pool_results + clearance_results
                    + afstrijker_results + afstrijker2_results
                    + geleider_results + drop_tube_results
-                   + vac_results + bowl_results)
+                   + mal_results + pinion_results)
     failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 

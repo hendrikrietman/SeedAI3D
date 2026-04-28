@@ -197,46 +197,82 @@ DROP_TUBE_Z_TOP    = GELEIDER_THROAT_Z;     // joins geleider throat (z=-6)
 DROP_TUBE_Z_BOTTOM = -52;                    // exits below pool floor (-45)
 
 // ==========================================================================
-// VACUUM CHAMBER (Phase 4 V5) — annular sector sealed against disc back face
-// covering pickup-to-release zone (θ ∈ [90°, 270°] going through θ=180°,
-// i.e. world x_local ≤ 0). Without a chamber, the vacuum has nowhere to
-// pull from; this is the missing structural element behind the disc.
+// PHASE 6 — DISC-MAL (integrated mal-plate). Replaces standalone Phase-4
+// vacuum chamber (archived) by absorbing it as a cavity inside a flat
+// structural plate that also holds the disc, mounts the motor, and
+// provides attachment points for everything else. See D11 for rationale
+// and D12 for the disc-retention scheme (no external bearings).
 // ==========================================================================
-VAC_CHAMBER_R_IN     = 30;    // just inside the pickup-hole circle (R=42)
-VAC_CHAMBER_R_OUT    = 50;    // just outside the pickup-hole circle
-VAC_CHAMBER_DEPTH    = 8;     // back from disc-back face
-VAC_CHAMBER_WALL     = 2;     // shell wall thickness (chamber is hollow inside)
-// Air gap between disc back face and chamber front (v5.6.1, 2026-04-28).
-// Real disc-vacuum machines (Monosem, MaterMacc) use 0.5–1 mm with a PTFE
-// wiper or rubber lip riding the gap. 1 mm gives manufacturing tolerance
-// + thermal expansion clearance without burning much suction across the
-// seal. Replaces the EPS=0.01 mm sliver that used to sit in this slot.
-VAC_CHAMBER_AIR_GAP  = 1.0;
-VAC_NIPPLE_DIA       = 12;    // Ø12 hose connection
-VAC_NIPPLE_LENGTH    = 30;    // sticks out 30 mm along disc-back-normal
-VAC_SECTOR_START_DEG = 90;    // sector angular range (disc-local), inclusive
-VAC_SECTOR_END_DEG   = 270;   // sector covers [90°, 270°] going through 180°
 
-// ==========================================================================
-// RECOVERY BOWL (Phase 5) — half-disc shell on the disc TOP half (footprint
-// y ≥ 0). Catches seeds that release outside the θ=90° window (e.g. mid-arc
-// vacuum drop, afstrijker-2 push that overshoots) and funnels them down
-// through a rectangular drain that aligns with the geleider catch-mouth
-// (40 × 20 mm at y_centre = 30, z = 22). R_OUTER mirrors the bottom pool
-// for visual symmetry; the bowl is open at the top (z > Z_TOP is just air).
-// Disc-envelope subtraction with 3 mm clearance carves the slot where the
-// disc rim crosses the bowl outer wall (at world (±41.2, 36.5, 36.5)) —
-// same trick as the bottom pool side walls (D6) and the geleider (D7).
-// ==========================================================================
-RECOVERY_BOWL_R_OUTER       = 55;
-RECOVERY_BOWL_WALL          = 2;
-RECOVERY_BOWL_R_INNER       = RECOVERY_BOWL_R_OUTER - RECOVERY_BOWL_WALL;
-// Floor sits flush on top of the geleider (mouth top at z = 22). Top is
-// 20 mm above release point (z = 29.7) so the bowl walls are tall enough
-// to retain a bouncing seed.
-RECOVERY_BOWL_Z_FLOOR       = 22;
-RECOVERY_BOWL_Z_TOP         = 50;
-RECOVERY_BOWL_DISC_CLEARANCE = 3;
+// --- Mal-plate body ---
+MAL_PLATE_X            = 180;   // plate width (in plate-local X')
+MAL_PLATE_Y            = 180;   // plate height (in plate-local Y')
+MAL_PLATE_THICKNESS    = 15;    // total plate thickness along disc-axis (Z')
+// Disc-recess: circular cut into plate-front-face. Disc OD with teeth = 132,
+// recess inner Ø = 134 → 1 mm radial clearance.
+MAL_DISC_RECESS_DIA    = 134;
+MAL_DISC_RECESS_DEPTH  = 5;     // disc 4 mm + 0.5 mm clearance front + back
+MAL_FRONT_CLEARANCE    = 0.5;   // disc-front to recess-opening (lip overlap)
+MAL_BACK_CLEARANCE     = 0.5;   // disc-back to recess-back-wall (= O-ring compressed protrusion)
+
+// --- Vacuum chamber, now integrated as cavity inside mal-plate ---
+// Sector covers θ ∈ [90°, 270°] through θ=180° (world x_local ≤ 0), same
+// as Phase 4. Radii moved 2 mm outward so the R=42 pickup circle sits
+// centred (10 mm margin each side, was 12/8 in Phase 4).
+MAL_CHAMBER_R_IN       = 32;
+MAL_CHAMBER_R_OUT      = 52;
+MAL_CHAMBER_DEPTH      = 8;     // along plate-Z, from recess-back-wall inward
+MAL_CHAMBER_BACK_WALL  = 2;     // plate-back wall behind chamber
+// Sanity: recess depth (5) + chamber depth (8) + chamber back wall (2) = 15 ✓
+
+// --- O-ring groove on the recess-back-wall (= chamber-front-wall in chamber sector) ---
+// ISO-3601 face-seal style for 2.5 mm round NBR cord. Groove width and
+// depth picked from the spec: 1.27× cord = 3.2 wide, 0.76× cord = 1.9 deep.
+ORING_CORD_DIA         = 2.5;
+ORING_GROOVE_WIDTH     = 3.2;
+ORING_GROOVE_DEPTH     = 1.9;
+ORING_OUTER_R          = MAL_CHAMBER_R_OUT + 1;   // 53 — just outside chamber wall
+ORING_INNER_R          = MAL_CHAMBER_R_IN  - 1;   // 31 — just inside chamber wall
+
+// --- Motor (NEMA17 stepper, per Phase 6 spec) ---
+MOTOR_BODY_SIZE        = 42;    // 42×42 NEMA17 flange
+MOTOR_BODY_LENGTH      = 47;    // standard stepper length
+MOTOR_SHAFT_DIA        = 5;     // motor output shaft
+MOTOR_SHAFT_LENGTH     = 22;    // shaft protrudes 22 mm from flange
+MOTOR_FLANGE_HOLE_PITCH = 31;   // M3 mounting holes on a 31 mm square pattern
+MOTOR_SHAFT_BORE_DIA   = 7;     // hole through plate (5 mm shaft + 1 mm clearance × 2)
+
+// --- Drive pinion ---
+// 20 teeth at module 1.5 → pitch dia 30, OD ≈ 33. Engages the 60-tooth
+// disc rim externally, 3:1 reduction. Pinion-disc centre distance:
+// disc-rim outer R = 66 mm; with disc-OD-without-teeth at R = 60 the
+// pinion pitch circle (R=15) sits at gear centre R = 60 + 15 = 75
+// from disc centre. Pinion teeth tips reach 75 - 16.5 = 58.5 → poke
+// 1.5 mm past disc R=60 into the tooth-rim band, where they mesh.
+PINION_TEETH           = 20;
+PINION_MODULE          = 1.5;
+PINION_PITCH_DIA       = PINION_TEETH * PINION_MODULE;       // 30
+PINION_PITCH_R         = PINION_PITCH_DIA / 2;               // 15
+PINION_OD              = PINION_PITCH_DIA + 2 * PINION_MODULE;  // 33
+PINION_THICKNESS       = 8;
+PINION_BORE            = MOTOR_SHAFT_DIA;
+// Pinion centre, in disc-local frame at θ=180° (world -X side):
+PINION_CENTRE_X        = -(DISC_OD / 2 + PINION_PITCH_R);    // = -75
+
+// --- Motor cut-out in mal-plate at θ=180° ---
+// Wide enough to clear pinion OD (33) with 1 mm side clearance, tall
+// enough (in plate-tangential Y) to clear pinion + housing.
+MAL_MOTOR_CUTOUT_X     = 36;    // radial extent (along disc-local X)
+MAL_MOTOR_CUTOUT_Y     = 36;    // tangential extent (along disc-local Y)
+MAL_MOTOR_CUTOUT_X_CTR = PINION_CENTRE_X;   // -75
+MAL_MOTOR_CUTOUT_Y_CTR = 0;
+
+// --- Hose nipple, on plate-back at chamber midpoint (θ=180°, R=42) ---
+MAL_NIPPLE_OD          = 12;
+MAL_NIPPLE_ID          = 8;
+MAL_NIPPLE_LENGTH      = 30;
+MAL_NIPPLE_X           = -(MAL_CHAMBER_R_IN + MAL_CHAMBER_R_OUT) / 2;  // -42
+MAL_NIPPLE_Y           = 0;
 
 // ==========================================================================
 // HOUSING (used in later phases, declared here for reference)

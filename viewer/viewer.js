@@ -102,12 +102,21 @@ const POOL = {
   fillZ: -24,
 };
 
-// Recovery bowl (Phase 5a) — half-disc shell on the disc TOP half,
-// footprint y ≥ 0, R_OUTER=55, z ∈ [22, 50]. Drains via the geleider.
-const BOWL = {
-  rOuter: 55, wall: 2,
-  zFloor: 22, zTop: 50,
+// Phase 6 — disc-mal integrated plate. Pre-tilt frame (= disc-local).
+// Plate Z range and pinion centre come from parameters.scad.
+const MAL = {
+  plateX: 180, plateY: 180, plateThickness: 15,
+  zFront: 2.5, zBack: -12.5,
+  chamberRIn: 32, chamberROut: 52, chamberDepth: 8,
+  pinionCentreX: -75, pinionPitchR: 15, pinionOD: 33, pinionThickness: 8,
+  motorBodySize: 42, motorBodyLength: 47,
+  shaftBoreDia: 7,
 };
+
+// Pinion rotates 3× faster than disc (60-tooth disc / 20-tooth pinion).
+// Pinion axis = disc axis (same direction). Engagement direction is
+// reversed since they're external gears.
+const PINION_RATIO = 60 / 20;
 
 // Geleider geometry — for catch test and glide path
 const GELEIDER = {
@@ -162,14 +171,19 @@ const dropTubeMat = new THREE.MeshPhongMaterial({
   side: THREE.DoubleSide, transparent: true, opacity: 0.82,
   clippingPlanes: [],
 });
-const vacuumChamberMat = new THREE.MeshPhongMaterial({
-  color: 0x232b34, specular: 0x111118, shininess: 40,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.62,
+const malPlateMat = new THREE.MeshPhongMaterial({
+  color: 0x4a4a52, specular: 0x222226, shininess: 32,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.78,
   clippingPlanes: [],
 });
-const recoveryBowlMat = new THREE.MeshPhongMaterial({
-  color: 0xc4a955, specular: 0x111114, shininess: 28,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.45,
+const pinionMat = new THREE.MeshPhongMaterial({
+  color: 0x6699d4, specular: 0x222226, shininess: 50,
+  side: THREE.DoubleSide,
+  clippingPlanes: [],
+});
+const motorMat = new THREE.MeshPhongMaterial({
+  color: 0xa0a0a8, specular: 0x222226, shininess: 60,
+  side: THREE.DoubleSide,
   clippingPlanes: [],
 });
 
@@ -237,8 +251,9 @@ let afstrijkerMesh = null;
 let afstrijker2Mesh = null;
 let geleiderMesh = null;
 let dropTubeMesh = null;
-let vacuumChamberMesh = null;
-let recoveryBowlMesh = null;
+let malPlateMesh = null;
+let pinionMesh = null;
+let motorMesh = null;
 const loader = new STLLoader();
 
 const STL_CACHE_BUST = `?v=${Date.now()}`;
@@ -279,19 +294,26 @@ loadStl('./models/geleider.stl',   geleiderMat,    (m) => {
   );
 });
 loadStl('./models/drop_tube.stl',  dropTubeMat,    (m) => { dropTubeMesh = m; });
-loadStl('./models/vacuum_chamber.stl', vacuumChamberMat, (m) => {
-  vacuumChamberMesh = m;
+loadStl('./models/mal_plate.stl', malPlateMat, (m) => {
+  malPlateMesh = m;
   m.updateMatrixWorld(true);
-  verifyMeshAgainstAnchor('vacuum_chamber', m, ANCHOR.chamber, 2.0);
   const c = meshCentroid(m);
   console.log(
-    `[anchor ✓] chamber back-side check: disc_plane_eq=${discPlaneEq(c).toFixed(2)} ` +
-    `(expect >0 for back-side) | ${discPlaneEq(c) > 0 ? 'PASS' : 'FAIL'}`,
+    `[anchor ✓] mal_plate centroid (${c.x.toFixed(2)}, ${c.y.toFixed(2)}, ` +
+    `${c.z.toFixed(2)}) | disc_plane_eq=${discPlaneEq(c).toFixed(2)} ` +
+    `(expect <0 — plate bulk is on disc-back side post-tilt)`,
   );
 });
-loadStl('./models/recovery_bowl.stl', recoveryBowlMat, (m) => {
-  recoveryBowlMesh = m;
+loadStl('./models/pinion.stl', pinionMat, (m) => {
+  pinionMesh = m;
+  // To rotate the pinion around its own axis (disc-axis through (-75,0,0)),
+  // shift the geometry so the pinion centre lands at mesh-local origin,
+  // then place the mesh at the pinion centre. Subsequent
+  // setRotationFromAxisAngle(DISC_AXIS, angle) rotates the gear in place.
+  m.geometry.translate(-MAL.pinionCentreX, 0, 0);   // shift +75 in X
+  m.position.set(MAL.pinionCentreX, 0, 0);
 });
+loadStl('./models/motor.stl', motorMat, (m) => { motorMesh = m; });
 
 // ============================================================================
 //  Pool fill — visible seed pile, with refill so the animation never starves
@@ -420,12 +442,6 @@ const ANCHOR = {
   // disc_plane_eq is < 0 (chamber-side); seeds enter from eq>0 side and
   // descend through it. Position itself is unchanged by the flip.
   geleiderMouth: new THREE.Vector3(0, GELEIDER.mouthYCenter, GELEIDER.mouthZ),
-  // Vacuum chamber centroid (post-FLIP, v5.6.1 with 1 mm air gap):
-  // SCAD-validated (-26.67, +7.38, -7.38). disc_plane_eq ≈ -10.43 < 0 →
-  // chamber-side, opposite of seeds. Pre-v5.6.1 value was (-26.67, +6.67,
-  // -6.67) at zero gap; the +0.71/−0.71 shift along the back-normal is
-  // exactly 1 mm × sin/cos 45°.
-  chamber: new THREE.Vector3(-26.67, 7.38, -7.38),
 };
 
 function meshCentroid(mesh) {
@@ -481,13 +497,6 @@ function logAnchorReport() {
     `[anchor] geleider mouth at (${gm.x.toFixed(2)}, ${gm.y.toFixed(2)}, ` +
     `${gm.z.toFixed(2)}) → release y same sign? ${sameSign(RELEASE_Y, gm.y)} ` +
     `(disc_plane_eq=${discPlaneEq(gm).toFixed(2)}, expect <0)`,
-  );
-
-  const cc = ANCHOR.chamber;
-  console.log(
-    `[anchor] chamber centroid (${cc.x.toFixed(2)}, ${cc.y.toFixed(2)}, ` +
-    `${cc.z.toFixed(2)}) → opposite-of-pool? ${!sameSign(POOL_Y, cc.y)} ` +
-    `(disc_plane_eq=${discPlaneEq(cc).toFixed(2)}, expect >0)`,
   );
 
   console.log('=== /ANCHOR ===');
@@ -807,9 +816,10 @@ const afstrijkerInput  = document.getElementById('show-afstrijker');
 const afstrijker2Input = document.getElementById('show-afstrijker2');
 const geleiderInput    = document.getElementById('show-geleider');
 const dropTubeInput    = document.getElementById('show-drop-tube');
-const vacChamberInput  = document.getElementById('show-vacuum-chamber');
 const vacGlowInput     = document.getElementById('show-vacuum-glow');
-const recoveryBowlInput = document.getElementById('show-recovery-bowl');
+const malPlateInput    = document.getElementById('show-mal-plate');
+const pinionInput      = document.getElementById('show-pinion');
+const motorInput       = document.getElementById('show-motor');
 const cleanBtn         = document.getElementById('clean-cycle-btn');
 
 const angleEl    = document.getElementById('info-angle');
@@ -840,7 +850,7 @@ vacuumInput.addEventListener('input', () => {
 csInput.addEventListener('change', () => {
   const planes = csInput.checked ? [clipPlane] : [];
   for (const m of [discMat, poolMat, afstrijkerMat, geleiderMat, dropTubeMat,
-                   vacuumChamberMat, recoveryBowlMat]) {
+                   malPlateMat, pinionMat, motorMat]) {
     m.clippingPlanes = planes;
     m.needsUpdate = true;
   }
@@ -863,14 +873,17 @@ geleiderInput.addEventListener('change', () => {
 dropTubeInput.addEventListener('change', () => {
   if (dropTubeMesh) dropTubeMesh.visible = dropTubeInput.checked;
 });
-vacChamberInput.addEventListener('change', () => {
-  if (vacuumChamberMesh) vacuumChamberMesh.visible = vacChamberInput.checked;
-});
 vacGlowInput.addEventListener('change', () => {
   holeGlowGroup.visible = vacGlowInput.checked;
 });
-recoveryBowlInput.addEventListener('change', () => {
-  if (recoveryBowlMesh) recoveryBowlMesh.visible = recoveryBowlInput.checked;
+malPlateInput.addEventListener('change', () => {
+  if (malPlateMesh) malPlateMesh.visible = malPlateInput.checked;
+});
+pinionInput.addEventListener('change', () => {
+  if (pinionMesh) pinionMesh.visible = pinionInput.checked;
+});
+motorInput.addEventListener('change', () => {
+  if (motorMesh) motorMesh.visible = motorInput.checked;
 });
 cleanBtn.addEventListener('click', () => {
   cleanCycleActive = !cleanCycleActive;
@@ -906,6 +919,11 @@ function animate() {
   rotationAngle += omega * dt;
   rotationAngle %= 2 * Math.PI;
   if (disc) disc.setRotationFromAxisAngle(DISC_AXIS, -rotationAngle);
+  // Pinion: 60T disc / 20T pinion = 3:1, opposite rotation direction
+  // (external mesh).
+  if (pinionMesh) pinionMesh.setRotationFromAxisAngle(
+    DISC_AXIS, +rotationAngle * PINION_RATIO,
+  );
 
   // Clean-cycle override: vacuum forced off (drops attached seeds via the
   // existing vacuum<5 path), refill suppressed (let the pool drain), and
