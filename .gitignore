@@ -1,11 +1,30 @@
-# Three.js source-of-truth lives in viewer/vendor/, not node_modules.
-viewer/node_modules/
-viewer/package-lock.json
-
 # Python
 __pycache__/
 *.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
 
-# Editor cruft
-.DS_Store
+# Node
+node_modules/
+package-lock.json
+
+# OpenSCAD intermediate
+*.csg
+
+# Editor
+.vscode/
+.idea/
 *.swp
+*.swo
+.DS_Store
+
+# Backups (don't commit tarballs)
+*.tar.gz
+*.zip
+
+# Local development
+.env
+.env.local
+*.log
