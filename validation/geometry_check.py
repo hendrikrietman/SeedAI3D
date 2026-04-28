@@ -74,18 +74,18 @@ PARAMS = {
     "PINION_CENTRE_X": -75.0,
     "MOTOR_BODY_SIZE": 42.0,
     "MOTOR_BODY_LENGTH": 47.0,
-    "HOPPER_TOP_X": 100.0,
-    "HOPPER_TOP_Y": 80.0,
-    "HOPPER_BOTTOM_X": 30.0,
-    "HOPPER_BOTTOM_Y": 30.0,
-    "HOPPER_HEIGHT": 80.0,
-    "HOPPER_BOTTOM_Z": -47.0,
-    "HOPPER_TOP_Z": 33.0,
-    "HOPPER_POOL_FLOOR_Z": -61.0,
-    "HOPPER_Y_CENTRE": -46.67,
-    "LID_OD": 200.0,
+    "HOPPER_TOP_X": 50.0,
+    "HOPPER_TOP_Y": 35.0,
+    "HOPPER_BOTTOM_X": 22.0,
+    "HOPPER_BOTTOM_Y": 22.0,
+    "HOPPER_HEIGHT": 25.0,
+    "HOPPER_BOTTOM_Z": -32.0,
+    "HOPPER_TOP_Z": -7.0,
+    "HOPPER_POOL_FLOOR_Z": -42.0,
+    "HOPPER_Y_CENTRE": -30.0,
+    "LID_OD": 140.0,
+    "LID_INNER_DIA": 112.0,
     "LID_THICKNESS": 6.0,
-    "LID_RIM_HEIGHT": 15.0,
     "DUST_RING_OD": 144.0,
     "DUST_RING_THICKNESS": 3.0,
 }
@@ -492,8 +492,8 @@ def check_hopper(stl_path: Path) -> list[CheckResult]:
         f"x_extent={extents[0]:.2f}, expected≈{PARAMS['HOPPER_TOP_X']}",
     ))
 
-    # Z range: top connector overshoots top, vac-cleanup connector
-    # tilted 80° extends ~+30 above hopper top. Pool floor at -67.
+    # Z range: pool floor at HOPPER_POOL_FLOOR_Z; top of hopper at
+    # HOPPER_TOP_Z (vac connector extends higher).
     z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
     results.append(CheckResult(
         "z_floor",

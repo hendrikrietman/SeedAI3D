@@ -99,10 +99,10 @@ const RELEASE_POS = new THREE.Vector3(0,  29.698,  29.698);
 // the disc-rim at θ=270° (world (0, -46.67, -46.67)) dips into the pool
 // surface. Mirrors parameters.scad HOPPER_*.
 const POOL = {
-  bottomX: 30, bottomY: 30,
-  xCenter: 0, yCenter: -46.67,
-  zFloor: -61, zTop: -47,           // v5.8.1: floor raised -67 → -61
-  fillZ: -49,                        // top of seed pile when full
+  bottomX: 22, bottomY: 22,
+  xCenter: 0, yCenter: -30,         // v5.8.2: moved to pickup-hole plan
+  zFloor: -42, zTop: -32,           // pool surface just below disc-back
+  fillZ: -34,                        // top of seed pile when full
 };
 
 // Phase 6 — disc-mal integrated plate. Pre-tilt frame (= disc-local).

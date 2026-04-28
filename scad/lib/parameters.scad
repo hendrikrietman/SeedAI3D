@@ -205,27 +205,26 @@ DROP_TUBE_Z_BOTTOM = -52;                    // exits below pool floor (-45)
 // front with a rubber dust-seal ring at the disc-OD radius.
 // ==========================================================================
 
-// --- Hopper (funnel) — built in WORLD coords (gravity along -Z), not
-//     tilted with the disc. Top is wide (operator pours seeds in here),
-//     bottom is narrow (last seeds congregate at pickup zone).
-HOPPER_TOP_X         = 100;
-HOPPER_TOP_Y         = 80;
-HOPPER_BOTTOM_X      = 30;
-HOPPER_BOTTOM_Y      = 30;
-HOPPER_HEIGHT        = 80;
+// --- Hopper (small cup at the pickup zone) — built in WORLD coords. ---
+// v5.8.2: hopper repositioned from the disc-rim plan position
+// (Y=-46.67) to the PICKUP-HOLE plan position (Y=-29.7), per Hendrik's
+// feedback: "hopper should be close to pickup not the border of the
+// disc". Also shrunk significantly (height 80→25, top 100×80→50×35,
+// bottom 30×30→22×22). Pool surface raised from world z=-47 → -32 so
+// pool sits just below the disc-back face at the pickup point. Pool
+// floor at z=-42 (well above plate-front-edge z=-61.7).
+HOPPER_TOP_X         = 50;
+HOPPER_TOP_Y         = 35;
+HOPPER_BOTTOM_X      = 22;
+HOPPER_BOTTOM_Y      = 22;
+HOPPER_HEIGHT        = 25;
 HOPPER_WALL          = 2;
-// Pool depth reduced 20→14 in v5.8.1: floor was at z=-67, below the
-// plate's front-edge (world z=-61.7 at plate-local Y=-90, Z=+2.5).
-// New floor z=-61 keeps pool seeds within the plate's vertical extent.
-HOPPER_POOL_DEPTH    = 14;
-// Bottom (narrow) sits centred under the disc-rim θ=270° point at
-// world (0, -46.67, -46.67). Bottom plan-position: x=0, y=-46.67.
-// Bottom Z: at the disc-rim Z so the disc dips into the pool surface.
-HOPPER_BOTTOM_Z      = -47;          // top of pool ≈ disc-rim level
-HOPPER_TOP_Z         = HOPPER_BOTTOM_Z + HOPPER_HEIGHT;        // +33
-HOPPER_POOL_FLOOR_Z  = HOPPER_BOTTOM_Z - HOPPER_POOL_DEPTH;    // -61
+HOPPER_POOL_DEPTH    = 10;
+HOPPER_BOTTOM_Z      = -32;          // pool surface, just below disc-back at pickup
+HOPPER_TOP_Z         = HOPPER_BOTTOM_Z + HOPPER_HEIGHT;        // -7
+HOPPER_POOL_FLOOR_Z  = HOPPER_BOTTOM_Z - HOPPER_POOL_DEPTH;    // -42
 HOPPER_X_CENTRE      = 0;
-HOPPER_Y_CENTRE      = -46.67;       // = -PICKUP_HOLE_RADIUS · cos(45°) for θ=270°
+HOPPER_Y_CENTRE      = -30;          // ≈ pickup hole plan position (world Y=-29.7)
 
 // --- Feeder tube — channel cast into front-side housing wall ---
 FEEDER_CHANNEL_ID    = 14;
@@ -238,25 +237,26 @@ VAC_CONNECTOR_LEN    = 30;
 VAC_ELEV_DEG         = 80;
 VAC_MOUTH_OFFSET_Z   = 8;            // mouth above hopper-narrow-bottom
 
-// --- Protective lid + rubber dust-seal ring ---
-// v5.8.1: lid widened from Ø 144 → 200 (plate width 180 plus 10 mm bezel
-// each side) and thickened from 4 → 6 mm. Side rim extends 15 mm back
-// from the lid-front-face so the lid wraps around the disc rim like a
-// proper housing cover, not a slim disc. Dust-ring keeps its original
-// Ø 144 outer (sized to disc OD with teeth + clearance), now decoupled
-// from LID_OD.
-LID_OD               = 200;
+// --- Protective lid (annular ring) + rubber dust-seal ring ---
+// v5.8.2: lid is now an ANNULAR RING covering only the outer 1-2 cm of
+// the disc plus the teeth, per Hendrik's feedback ("cover should cover
+// outer 1-2cm of the disc, so the teeth are not open, but closed").
+// Ring inner Ø=112 (R=56, ~10 mm inside disc body OD at R=60), outer
+// Ø=140 (R=70, ~4 mm bezel beyond teeth at R=66). The middle of the
+// disc — where pickup holes and the hopper-pickup-zone live — stays
+// open. Side rim removed (the ring itself sits 6 mm in front of the
+// disc and provides physical retention without extra wraparound).
+LID_OD               = 140;          // outer Ø, was 200
+LID_INNER_DIA        = 112;          // inner Ø — ring opens here (R=56)
 LID_ID_RING          = 130;          // dust-ring inner Ø, just inside disc OD
 DUST_RING_OD         = 144;          // dust-ring outer Ø — disc OD + 12 mm
 LID_THICKNESS        = 6;
-LID_OFFSET_FROM_DISC = 12;           // along disc-front-normal direction (was 8)
-LID_RIM_HEIGHT       = 15;           // side-rim extends back from lid front
-LID_RIM_THICKNESS    = 4;
+LID_OFFSET_FROM_DISC = 8;            // 6 mm air gap to disc-front-face
 DUST_RING_THICKNESS  = 3;
 // Lid sits in disc-local (front side, +Z direction) at distance LID_OFFSET
 // from disc-front face. Disc-front face at disc-local Z=+2. Lid front at
-// disc-local Z = +2 + LID_OFFSET = +14. Lid back at +14 - 6 = +8. Side
-// rim extends from Z=+8 down to Z=+8-15 = -7 (wraps around disc rim).
+// disc-local Z = +2 + 8 = +10. Lid back at +10 - 6 = +4. Dust ring
+// from +1 to +4 (sits inside the 6 mm front clearance).
 
 // ==========================================================================
 // PHASE 6 — DISC-MAL (integrated mal-plate). Replaces standalone Phase-4

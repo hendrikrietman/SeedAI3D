@@ -40,44 +40,49 @@ EPS = 0.01;
 //  Built directly in world coords (axis = world -Z).
 // =====================================================================
 module hopper_outer_solid() {
-    // Funnel body: hull from a small box at the bottom narrow level to a
-    // larger box at the top.
+    // Pool reservoir: constant-cross-section box, extends 1 mm above
+    // HOPPER_BOTTOM_Z to overlap with the funnel hull below.
+    translate([HOPPER_X_CENTRE - HOPPER_BOTTOM_X / 2,
+               HOPPER_Y_CENTRE - HOPPER_BOTTOM_Y / 2,
+               HOPPER_POOL_FLOOR_Z])
+        cube([HOPPER_BOTTOM_X, HOPPER_BOTTOM_Y, HOPPER_POOL_DEPTH + 1]);
+    // Funnel body: hull from narrow box (1 mm below pool top, overlapping
+    // pool) to wide box at the top.
     hull() {
-        // Bottom narrow rectangle (just above pool surface)
         translate([HOPPER_X_CENTRE - HOPPER_BOTTOM_X / 2,
                    HOPPER_Y_CENTRE - HOPPER_BOTTOM_Y / 2,
-                   HOPPER_BOTTOM_Z])
+                   HOPPER_BOTTOM_Z - 1])
             cube([HOPPER_BOTTOM_X, HOPPER_BOTTOM_Y, EPS]);
-        // Top wide rectangle
         translate([HOPPER_X_CENTRE - HOPPER_TOP_X / 2,
                    HOPPER_Y_CENTRE - HOPPER_TOP_Y / 2,
                    HOPPER_TOP_Z])
             cube([HOPPER_TOP_X, HOPPER_TOP_Y, EPS]);
     }
-    // Pool reservoir (rectangular box below the funnel narrow bottom)
-    translate([HOPPER_X_CENTRE - HOPPER_BOTTOM_X / 2,
-               HOPPER_Y_CENTRE - HOPPER_BOTTOM_Y / 2,
-               HOPPER_POOL_FLOOR_Z])
-        cube([HOPPER_BOTTOM_X, HOPPER_BOTTOM_Y, HOPPER_POOL_DEPTH]);
 }
 
 module hopper_cavity() {
-    // Inner funnel cavity, inset by HOPPER_WALL on every face. Hull from
-    // bottom narrow to top wide (top opens to the air, so the cavity
-    // breaks through the top surface).
+    inner_bx = HOPPER_BOTTOM_X - 2 * HOPPER_WALL;
+    inner_by = HOPPER_BOTTOM_Y - 2 * HOPPER_WALL;
+    inner_tx = HOPPER_TOP_X - 2 * HOPPER_WALL;
+    inner_ty = HOPPER_TOP_Y - 2 * HOPPER_WALL;
+    // Pool cavity: constant cross-section, matches pool outer minus walls.
+    translate([HOPPER_X_CENTRE - inner_bx / 2,
+               HOPPER_Y_CENTRE - inner_by / 2,
+               HOPPER_POOL_FLOOR_Z + HOPPER_WALL])
+        cube([inner_bx, inner_by,
+              HOPPER_POOL_DEPTH - HOPPER_WALL + 2]);
+    // Funnel cavity: hull from pool top (narrow inner) up past hopper top
+    // (wide inner). Slopes match the outer funnel so wall thickness stays
+    // at HOPPER_WALL throughout.
     hull() {
-        translate([HOPPER_X_CENTRE - (HOPPER_BOTTOM_X / 2 - HOPPER_WALL),
-                   HOPPER_Y_CENTRE - (HOPPER_BOTTOM_Y / 2 - HOPPER_WALL),
-                   HOPPER_POOL_FLOOR_Z + HOPPER_WALL])
-            cube([HOPPER_BOTTOM_X - 2 * HOPPER_WALL,
-                  HOPPER_BOTTOM_Y - 2 * HOPPER_WALL,
-                  EPS]);
-        translate([HOPPER_X_CENTRE - (HOPPER_TOP_X / 2 - HOPPER_WALL),
-                   HOPPER_Y_CENTRE - (HOPPER_TOP_Y / 2 - HOPPER_WALL),
+        translate([HOPPER_X_CENTRE - inner_bx / 2,
+                   HOPPER_Y_CENTRE - inner_by / 2,
+                   HOPPER_BOTTOM_Z - EPS])
+            cube([inner_bx, inner_by, EPS]);
+        translate([HOPPER_X_CENTRE - inner_tx / 2,
+                   HOPPER_Y_CENTRE - inner_ty / 2,
                    HOPPER_TOP_Z + 1])
-            cube([HOPPER_TOP_X - 2 * HOPPER_WALL,
-                  HOPPER_TOP_Y - 2 * HOPPER_WALL,
-                  EPS]);
+            cube([inner_tx, inner_ty, EPS]);
     }
 }
 
@@ -104,39 +109,20 @@ module feeder_connector_bore() {
                          h = FEEDER_CONNECTOR_LEN + HOPPER_WALL + 10);
 }
 
-// Vac-cleanup connector: cylindrical stub on the hopper-top-face.
-// Tilted near-vertical (VAC_ELEV_DEG = 80° = 10° off vertical).
-module vac_connector_outer() {
-    translate([HOPPER_X_CENTRE,
-               HOPPER_Y_CENTRE - 5,                 // slight -Y for operator reach
-               HOPPER_TOP_Z])
-        rotate([90 - VAC_ELEV_DEG, 0, 0])
-            cylinder(d = VAC_CHANNEL_ID + 4,
-                     h = VAC_CONNECTOR_LEN + 8 + EPS);
-}
-
-module vac_connector_bore() {
-    // Bore extends from hopper-top down through the connector to inside
-    // the hopper, ending at HOPPER_BOTTOM_Z + VAC_MOUTH_OFFSET_Z = -39.
-    translate([HOPPER_X_CENTRE,
-               HOPPER_Y_CENTRE - 5,
-               HOPPER_TOP_Z])
-        rotate([90 - VAC_ELEV_DEG, 0, 0])
-            translate([0, 0, -50])
-                cylinder(d = VAC_CHANNEL_ID,
-                         h = VAC_CONNECTOR_LEN + 60);
-}
+// Vac-cleanup connector retired in v5.8.2 — with the hopper now small and
+// positioned at the pickup zone, the vac-stub anchor would land inside
+// the open hopper-top cavity, breaking 2-manifoldness. Re-add when /
+// if a top-mount cleanup is reinstated (probably as a separate module
+// not booleaned with the hopper).
 
 module hopper() {
     difference() {
         union() {
             hopper_outer_solid();
             feeder_connector_outer();
-            vac_connector_outer();
         }
         hopper_cavity();
         feeder_connector_bore();
-        vac_connector_bore();
     }
 }
 
@@ -146,49 +132,35 @@ module hopper() {
 //  at Z = LID_FRONT_Z - LID_THICKNESS. Cutouts where geleider mouth,
 //  pickup zone, and central drop-tube need to pass.
 // =====================================================================
-// v5.8.1: lid with wide front face + side rim. The front disc covers the
-// disc area in plan; the side rim extends back from the front-disc edge
-// to wrap around the disc rim like a real housing cover.
-LID_FRONT_Z       = DISC_THICKNESS / 2 + LID_OFFSET_FROM_DISC;      // +14
-LID_BACK_Z        = LID_FRONT_Z - LID_THICKNESS;                     // +8
-LID_RIM_BACK_Z    = LID_BACK_Z - LID_RIM_HEIGHT;                     // -7
-DUST_RING_FRONT_Z = LID_BACK_Z - DUST_RING_THICKNESS;                // +5
+// v5.8.2: lid is an ANNULAR RING (no full disc, no side rim).
+// Ring covers from R=56 (inner edge) to R=70 (outer edge), 6 mm thick.
+// The disc's pickup-hole circle (R=42) and central area stay fully
+// open in front view — that's where the hopper sits.
+LID_FRONT_Z       = DISC_THICKNESS / 2 + LID_OFFSET_FROM_DISC;      // +10
+LID_BACK_Z        = LID_FRONT_Z - LID_THICKNESS;                     // +4
+DUST_RING_FRONT_Z = LID_BACK_Z - DUST_RING_THICKNESS;                // +1
 
 module lid_solid() {
-    union() {
-        // Front disc face
-        translate([0, 0, LID_BACK_Z])
+    translate([0, 0, LID_BACK_Z])
+        difference() {
             cylinder(d = LID_OD, h = LID_THICKNESS);
-        // Side rim — annular cylinder extending back from lid-back-face,
-        // 4 mm thick. Wraps around the disc rim, gives the lid visual
-        // depth so it looks like a sound housing cover.
-        translate([0, 0, LID_RIM_BACK_Z])
-            difference() {
-                cylinder(d = LID_OD, h = LID_RIM_HEIGHT);
-                translate([0, 0, -1])
-                    cylinder(d = LID_OD - 2 * LID_RIM_THICKNESS,
-                             h = LID_RIM_HEIGHT + 2);
-            }
-    }
+            translate([0, 0, -1])
+                cylinder(d = LID_INNER_DIA, h = LID_THICKNESS + 2);
+        }
 }
 
-// Cutouts: pickup zone (θ=270°), release / geleider mouth area (θ=90°),
-// central drop-tube hole. Cutouts span both the lid front face AND the
-// side rim so the disc rim is exposed at top and bottom for hopper /
-// geleider access.
-LID_CUTOUT_DEPTH = LID_THICKNESS + LID_RIM_HEIGHT + 2;   // 23
-
+// Cutouts in the ring at θ=270° (hopper access) and θ=90° (geleider
+// release window). Each is a small radial slot through the ring so the
+// disc-rim teeth are exposed at those angular positions for hopper /
+// geleider access. The rest of the ring covers the disc teeth.
 module lid_cutouts() {
-    // Pickup-zone window — 60×35 box at θ=270° (wider than before so
-    // the disc-rim teeth at θ=270° are clearly exposed for hopper access).
-    translate([-30, -75, LID_RIM_BACK_Z - 1])
-        cube([60, 35, LID_CUTOUT_DEPTH]);
-    // Release-zone window — at θ=90° area. Sized for geleider mouth + clearance.
-    translate([-30, 40, LID_RIM_BACK_Z - 1])
-        cube([60, 35, LID_CUTOUT_DEPTH]);
-    // Central hole for drop-tube (front face only)
-    translate([0, 0, LID_BACK_Z - 1])
-        cylinder(d = CENTRAL_HOLE_DIA + 4, h = LID_THICKNESS + 2);
+    // Pickup-zone slot — radial gap at θ=270° (disc-local Y < 0 area).
+    // Width 30 mm tangentially (X), depth fully through ring radially (Y).
+    translate([-15, -LID_OD / 2 - 1, LID_BACK_Z - 1])
+        cube([30, LID_OD, LID_THICKNESS + 2]);
+    // Release-zone slot — at θ=90°. Wider (40 mm) to clear geleider mouth.
+    translate([-20, LID_INNER_DIA / 2 - 1, LID_BACK_Z - 1])
+        cube([40, LID_OD / 2 - LID_INNER_DIA / 2 + 2, LID_THICKNESS + 2]);
 }
 
 module lid() {

@@ -955,3 +955,58 @@ the feeder routed through the lid into the hopper from above — flagged
 as future work). Mal-plate disc-recess overlap (D13) still accepted.
 
 **Tag**: v5.8.1.
+
+## V5.8.2 — Lid as annular ring; hopper at pickup zone
+
+Browser eyeball v5.8.1: "top lid is way too large", "seed hopper should be
+very close to seed pickup not close to the border of the disc", "cover
+should cover outer 1-2 cm of the disc, so the teeth are not open, but
+closed", "seeds should be in the hopper — hopper is now placed into the
+air. This should be smoothly integrated in the lid."
+
+Three changes (no animation lifecycle touches):
+
+1. **Lid is now an ANNULAR RING.** OD shrunk 200 → 140 (covers disc
+   teeth at R=66 plus 4 mm bezel), with new `LID_INNER_DIA = 112` (R=56)
+   so the inner 56 mm radius of the disc — including the pickup-hole
+   circle at R=42 and the central hole — stays open. Side rim removed.
+   Cutouts at θ=270° (hopper access) and θ=90° (geleider release) are
+   now narrow radial slots through the ring rather than full-thickness
+   rectangles. Function: covers the outer disc body + teeth (so teeth
+   aren't open), retains disc front, leaves the working area visible.
+
+2. **Hopper repositioned to pickup zone.** `HOPPER_Y_CENTRE` moved
+   from world Y=-46.67 (disc-rim plan) to Y=-30 (pickup-hole plan, R=42).
+   Pool surface raised from z=-47 to z=-32 (just below disc-back face
+   at the pickup point). Hopper shrunk significantly: top 100×80→50×35,
+   bottom 30×30→22×22, height 80→25 mm, pool depth 14→10 mm. Pool
+   floor at z=-42, well above the plate-front-edge at z=-61.7. Visually
+   the hopper now sits right at the pickup zone instead of dangling
+   below the disc rim.
+
+3. **Vac-cleanup connector retired temporarily.** With the smaller
+   hopper, the vac-stub anchor at (0, Y_CENTRE-5, TOP_Z) landed inside
+   the open hopper-top cavity, breaking 2-manifoldness on STL export.
+   Removed for now; can be re-added as a separate non-booleaned mesh
+   if Hendrik wants the "integrated wall channel" visual back.
+
+**Animation untouched.** `viewer.js` `POOL` constants updated parametrically
+to match new spawn region (bottomX/Y=22, yCenter=-30, zFloor=-42,
+fillZ=-34). Lifecycle code (`holeState`, `update*`, rotation calcs) all
+unchanged.
+
+**STL stats**:
+- hopper 447 v / 898 f, watertight, bounds x[-25, +25] y[-68.8, -12.5]
+  z[-42, +12.9] (feeder connector extends y to -68.8, z to +12.9)
+- lid 240 v / 472 f, watertight, x[-70, +70] (OD 140)
+- dust_ring 256 v / 512 f unchanged
+
+**Validation**: 44/44 PASS.
+
+**Open**: hopper-to-lid "smooth integration" is still visual proximity
+only, not a boolean union — would require the lid's inner edge at θ=270°
+to extend down to meet the hopper top, or the hopper to grow up into
+the lid plane. Either way needs a more substantial SCAD redesign than a
+parametric tweak. Flagged for future iteration.
+
+**Tag**: v5.8.2.
