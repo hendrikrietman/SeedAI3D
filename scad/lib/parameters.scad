@@ -226,16 +226,26 @@ HOPPER_POOL_FLOOR_Z  = HOPPER_BOTTOM_Z - HOPPER_POOL_DEPTH;    // -42
 HOPPER_X_CENTRE      = 0;
 HOPPER_Y_CENTRE      = -30;          // ≈ pickup hole plan position (world Y=-29.7)
 
-// --- Feeder tube — channel cast into front-side housing wall ---
+// --- Feeder tube — channel through front housing wall ---
 FEEDER_CHANNEL_ID    = 14;
 FEEDER_CONNECTOR_LEN = 25;           // protruding stub for hose attach
 FEEDER_ELEV_DEG      = 60;
+FEEDER_TUBE_OD       = FEEDER_CHANNEL_ID + 4;   // 18 — outer wall 2 mm
 
-// --- Vac-cleanup tube — channel cast into top side housing wall ---
-VAC_CHANNEL_ID       = 22;
-VAC_CONNECTOR_LEN    = 30;
-VAC_ELEV_DEG         = 80;
-VAC_MOUTH_OFFSET_Z   = 8;            // mouth above hopper-narrow-bottom
+// --- Vac-cleanup tube (re-added in v5.8.4) — same dimensions as feeder
+//     per Hendrik. Standalone STL, not booleaned with the hopper (the
+//     mouth sits inside the open hopper-top cavity, which previously
+//     broke 2-manifoldness when union'd). Tube extends from inside the
+//     pool up through the hopper-top opening to an external connector
+//     above the hopper.
+VAC_CHANNEL_ID       = 14;           // matches feeder ID
+VAC_TUBE_OD          = VAC_CHANNEL_ID + 4;       // 18 — matches feeder OD
+VAC_ELEV_DEG         = 80;           // 10° off vertical, tilts toward operator
+VAC_MOUTH_OFFSET_Z   = 8;            // mouth height above pool floor
+VAC_TUBE_TOTAL_LEN   = 60;           // mouth to external tip
+VAC_TUBE_X           = 0;
+VAC_TUBE_Y           = HOPPER_Y_CENTRE - 5;       // = -35
+VAC_TUBE_MOUTH_Z     = HOPPER_POOL_FLOOR_Z + VAC_MOUTH_OFFSET_Z;   // = -34
 
 // --- Protective lid (annular ring) + rubber dust-seal ring ---
 // v5.8.2: lid is now an ANNULAR RING covering only the outer 1-2 cm of

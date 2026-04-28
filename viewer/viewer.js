@@ -206,6 +206,11 @@ const dustRingMat = new THREE.MeshPhongMaterial({
   side: THREE.DoubleSide, transparent: true, opacity: 0.85,
   clippingPlanes: [],
 });
+const vacTubeMat = new THREE.MeshPhongMaterial({
+  color: 0x4a4a52, specular: 0x222226, shininess: 35,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.75,
+  clippingPlanes: [],
+});
 
 const SEED_RADIUS = 3;
 const seedGeom = new THREE.SphereGeometry(SEED_RADIUS, 14, 10);
@@ -277,6 +282,7 @@ let motorMesh = null;
 let hopperMesh = null;
 let lidMesh = null;
 let dustRingMesh = null;
+let vacTubeMesh = null;
 const loader = new STLLoader();
 
 const STL_CACHE_BUST = `?v=${Date.now()}`;
@@ -340,6 +346,7 @@ loadStl('./models/motor.stl', motorMat, (m) => { motorMesh = m; });
 loadStl('./models/hopper.stl', hopperMat, (m) => { hopperMesh = m; });
 loadStl('./models/lid.stl', lidMat, (m) => { lidMesh = m; });
 loadStl('./models/dust_ring.stl', dustRingMat, (m) => { dustRingMesh = m; });
+loadStl('./models/vac_tube.stl', vacTubeMat, (m) => { vacTubeMesh = m; });
 
 // ============================================================================
 //  Pool fill — visible seed pile, with refill so the animation never starves
@@ -350,20 +357,17 @@ const poolGroup = new THREE.Group();
 scene.add(poolGroup);
 const poolSeeds = [];
 
-function placePoolSeed(seed) {
-  // v5.8.3: layer seeds from pool floor up through the funnel. Each
-  // layer's footprint expands as we rise into the funnel zone, matching
-  // the hopper's interior cross-section. Lifecycle code unchanged —
-  // pickup picks the highest-Z seed.
+function computePoolSpawnPosition(occupancyCount) {
+  // Spawn seeds in layers from pool floor upward. Layer footprint
+  // matches the hopper cross-section at that z (constant in pool zone,
+  // widening through the funnel). Used by both placePoolSeed (for
+  // direct/initial fill) and the feeder animation target.
   const seedsPerLayer = 6;
-  const layer = Math.floor(poolSeeds.length / seedsPerLayer);
+  const layer = Math.floor(occupancyCount / seedsPerLayer);
   const z_layer = POOL.zFloor + SEED_RADIUS
                 + layer * (SEED_RADIUS * 1.6)
                 + (Math.random() - 0.5) * 1.0;
   const z = Math.min(z_layer, POOL.fillZ);
-  // Footprint at this z: constant in pool zone, linearly widening in
-  // funnel zone (matches the SCAD hopper hull from narrow bottom box
-  // at z=zTop-1 to wide top box at zHopperTop).
   let footX, footY;
   if (z <= POOL.zTop) {
     footX = POOL.bottomX;
@@ -377,7 +381,11 @@ function placePoolSeed(seed) {
   const halfY = footY / 2 - 2;
   const x = POOL.xCenter + (Math.random() - 0.5) * 2 * halfX;
   const y = POOL.yCenter + (Math.random() - 0.5) * 2 * halfY;
-  seed.position.set(x, y, z);
+  return new THREE.Vector3(x, y, z);
+}
+
+function placePoolSeed(seed) {
+  seed.position.copy(computePoolSpawnPosition(poolSeeds.length));
 }
 
 function spawnPoolSeed() {
@@ -388,8 +396,22 @@ function spawnPoolSeed() {
 }
 
 function refillPoolIfLow() {
-  if (poolSeeds.length < POOL_REFILL_AT) {
-    while (poolSeeds.length < POOL_TARGET) spawnPoolSeed();
+  // v5.8.4: refills now drip in through the feeder tube instead of
+  // teleporting. Account for seeds already in flight so we don't
+  // over-queue.
+  const total = poolSeeds.length + feedingSeeds.length + refillRemaining;
+  if (total < POOL_REFILL_AT) {
+    refillRemaining = POOL_TARGET - poolSeeds.length - feedingSeeds.length;
+  }
+}
+
+function pumpFeeder(dt) {
+  if (refillRemaining <= 0) return;
+  feedAccumulator += dt * FEED_RATE;
+  while (feedAccumulator >= 1 && refillRemaining > 0) {
+    feedAccumulator -= 1;
+    refillRemaining -= 1;
+    spawnFeedingSeed();
   }
 }
 
@@ -593,11 +615,13 @@ const fallingGroup  = new THREE.Group(); scene.add(fallingGroup);
 const glidingGroup  = new THREE.Group(); scene.add(glidingGroup);
 const exitingGroup  = new THREE.Group(); scene.add(exitingGroup);
 const cleaningGroup = new THREE.Group(); scene.add(cleaningGroup);
+const feedingGroup  = new THREE.Group(); scene.add(feedingGroup);
 
 const fallingSeeds  = [];   // { mesh, vx, vy, vz, t }
 const glidingSeeds  = [];   // { mesh, t, dur, p0, p1 }
 const exitingSeeds  = [];   // { mesh, t, dur, p0, p1 }
 const cleaningSeeds = [];   // { mesh, t, stage, p0, p1, p2 }
+const feedingSeeds  = [];   // { mesh, t, dur, p0, p1 }
 
 // =====================================================================
 //  Clean-cycle (Phase 5b) — operator pulls all pool seeds out via the
@@ -610,18 +634,45 @@ const cleaningSeeds = [];   // { mesh, t, stage, p0, p1, p2 }
 //  Length: 25 mm in-pool + 60 mm out-pool = 85 mm total.
 // =====================================================================
 const CLEAN_RATE = 3.0;           // seeds per second sucked out of pool
-const VAC_CLEAN_MOUTH = new THREE.Vector3(0, -42, -43);
+// v5.8.4: vac-tube re-added; mouth at hopper-pool (z=-34, y=-35), tube
+// extends 60 mm at 80° elev tilting toward operator (-Y, +Z).
+const VAC_CLEAN_MOUTH = new THREE.Vector3(0, -35, -34);
 const VAC_CLEAN_DIR = new THREE.Vector3(
   0,
   -Math.cos(80 * Math.PI / 180),
   Math.sin(80 * Math.PI / 180),
 ).normalize();
 const VAC_CLEAN_END = VAC_CLEAN_MOUTH.clone()
-  .add(VAC_CLEAN_DIR.clone().multiplyScalar(85));
+  .add(VAC_CLEAN_DIR.clone().multiplyScalar(60));
 
 let cleanCycleActive = false;
 let cleanAccumulator = 0;
 let cleanedCount = 0;
+
+// =====================================================================
+//  Feeder seed-flow (v5.8.4) — visualises seeds entering the hopper
+//  through the feeder tube instead of teleporting in. When refill
+//  triggers, seeds drip in at FEED_RATE; each animates from the feeder
+//  external end to its target pool position.
+//
+//  Feeder geometry (mirrors v5_7_housing.scad):
+//    Anchor at world (15, -47.5, -15), tilted 60° elev (rotate([30,0,0])).
+//    Connector body extends along (0, -sin30°, +cos30°) = (0, -0.5,
+//    +0.866) for length 25 mm.
+//    External tip = anchor + 25·dir = (15, -60, +6.65).
+// =====================================================================
+const FEED_RATE = 4.0;            // seeds per second entering via feeder
+const FEEDER_DIR = new THREE.Vector3(
+  0,
+  -Math.sin(30 * Math.PI / 180),
+  Math.cos(30 * Math.PI / 180),
+).normalize();
+const FEEDER_ANCHOR = new THREE.Vector3(15, -47.5, -15);
+const FEEDER_EXT_END = FEEDER_ANCHOR.clone()
+  .add(FEEDER_DIR.clone().multiplyScalar(25));
+
+let feedAccumulator = 0;
+let refillRemaining = 0;
 
 // ----- transitions -----
 function detachToFalling(seedMesh, omega, x0, y0, z0) {
@@ -725,6 +776,38 @@ function suckPoolSeedToVacTube() {
     p1: VAC_CLEAN_MOUTH.clone(),
     p2: VAC_CLEAN_END.clone(),
   });
+}
+
+function spawnFeedingSeed() {
+  const m = new THREE.Mesh(seedGeom, poolSeedMat);
+  m.position.copy(FEEDER_EXT_END);
+  feedingGroup.add(m);
+  // Target: a pool position that accounts for current pool + seeds
+  // already in flight (so we don't all aim at the same spot).
+  const occupancy = poolSeeds.length + feedingSeeds.length;
+  const target = computePoolSpawnPosition(occupancy);
+  feedingSeeds.push({
+    mesh: m, t: 0, dur: 0.55,
+    p0: FEEDER_EXT_END.clone(),
+    p1: target,
+  });
+}
+
+function updateFeeding(dt) {
+  for (let i = feedingSeeds.length - 1; i >= 0; i--) {
+    const f = feedingSeeds[i];
+    f.t += dt;
+    const u = Math.min(f.t / f.dur, 1);
+    const eased = u * u * (3 - 2 * u);
+    f.mesh.position.lerpVectors(f.p0, f.p1, eased);
+    if (u >= 1) {
+      feedingGroup.remove(f.mesh);
+      poolGroup.add(f.mesh);
+      f.mesh.position.copy(f.p1);
+      poolSeeds.push(f.mesh);
+      feedingSeeds.splice(i, 1);
+    }
+  }
 }
 
 function updateCleaning(dt) {
@@ -856,6 +939,7 @@ const motorInput       = document.getElementById('show-motor');
 const hopperInput      = document.getElementById('show-hopper');
 const lidInput         = document.getElementById('show-lid');
 const dustRingInput    = document.getElementById('show-dust-ring');
+const vacTubeInput     = document.getElementById('show-vac-tube');
 const cleanBtn         = document.getElementById('clean-cycle-btn');
 
 const angleEl    = document.getElementById('info-angle');
@@ -887,7 +971,7 @@ csInput.addEventListener('change', () => {
   const planes = csInput.checked ? [clipPlane] : [];
   for (const m of [discMat, afstrijkerMat, geleiderMat, dropTubeMat,
                    malPlateMat, pinionMat, motorMat,
-                   hopperMat, lidMat, dustRingMat]) {
+                   hopperMat, lidMat, dustRingMat, vacTubeMat]) {
     m.clippingPlanes = planes;
     m.needsUpdate = true;
   }
@@ -930,6 +1014,9 @@ lidInput.addEventListener('change', () => {
 });
 dustRingInput.addEventListener('change', () => {
   if (dustRingMesh) dustRingMesh.visible = dustRingInput.checked;
+});
+vacTubeInput.addEventListener('change', () => {
+  if (vacTubeMesh) vacTubeMesh.visible = vacTubeInput.checked;
 });
 cleanBtn.addEventListener('click', () => {
   cleanCycleActive = !cleanCycleActive;
@@ -983,6 +1070,7 @@ function animate() {
     }
   } else {
     refillPoolIfLow();
+    pumpFeeder(dt);
   }
 
   // Per-hole pickup / travel / afstrijker / release
@@ -1087,6 +1175,7 @@ function animate() {
   updateGliding(dt);
   updateExiting(dt);
   updateCleaning(dt);
+  updateFeeding(dt);
 
   // HUD
   angleEl.textContent  = (rotationAngle * 180 / Math.PI).toFixed(1) + '°';

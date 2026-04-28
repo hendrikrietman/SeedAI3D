@@ -1065,3 +1065,60 @@ auto-refill bringing pool back to 100; could be re-added as a separate
 animation if you want the visual).
 
 **Tag**: v5.8.3.
+
+## V5.8.4 — Vac-cleanup tube re-added; feeder seed-flow animation
+
+Browser eyeball v5.8.3: "cleanout!" + "vacuum tube as large as feeder
+tube" + "feeder tube should actually show seeds flowing into hopper" +
+"be nicely integrated with hopper. So not hanging in the air".
+
+Three changes:
+
+1. **Vac-cleanup tube re-added as a standalone STL.** Mounted with
+   mouth INSIDE the open hopper-top cavity at world (0, -35, -34) — 8 mm
+   above pool floor, slightly toward operator from hopper centre. Tube
+   extends 60 mm at 80° elevation (10° off vertical, tilting toward
+   operator −Y) so the external connector at world (0, -45.4, +25.1)
+   is reachable. Same OD/ID as the feeder per Hendrik (`VAC_TUBE_OD`
+   = 18, `VAC_CHANNEL_ID` = 14). Standalone module — NOT booleaned
+   with the hopper outer (which previously broke 2-manifoldness on
+   small-hopper geometry). Watertight 256v/512f.
+
+2. **Feeder seed-flow animation.** Refill no longer teleports seeds
+   into the pool — they now drip in through the feeder tube at
+   `FEED_RATE` = 4 seeds/sec. Each seed spawns at the feeder external
+   tip (world (15, -60, +6.65)), animates 0.55 s eased lerp into a
+   target pool position computed by the new
+   `computePoolSpawnPosition(occupancyCount)`, then transitions into
+   the regular `poolSeeds[]` array. State: `feedingSeeds[]`,
+   `feedingGroup` THREE.Group, `refillRemaining` queue counter,
+   `feedAccumulator`. `pumpFeeder(dt)` and `updateFeeding(dt)` hook
+   into the animation loop.
+
+3. **Clean-cycle suction now uses the actual vac-tube position.**
+   `VAC_CLEAN_MOUTH` constant updated from the old (0, -42, -43) to
+   the new tube mouth (0, -35, -34); `VAC_CLEAN_END` follows the
+   60 mm tube length to (0, -45.4, +25.1). Clean cycle visually
+   sucks pool seeds along the actual tube path now.
+
+**Lifecycle preservation**: `placePoolSeed()` was refactored — the
+position-computation logic moved into a pure helper
+`computePoolSpawnPosition(occupancyCount)`, and `placePoolSeed()` now
+just calls the helper. No change to the pickup / attached / falling /
+gliding / exiting transitions or rotation calculations.
+
+**Validation**: 47/47 PASS (added `check_vac_tube` for the new STL).
+
+**STL stats**: hopper / lid / dust_ring unchanged from v5.8.3. New
+vac_tube 256v/512f watertight.
+
+**Open** (still): the feeder anchor at world (15, -47.5, -15) is at
+the hopper-front-wall *top edge* in disc-local; at z=-15 the actual
+front wall has crept inward to y≈-45.4 due to the funnel slope, so
+the feeder cylinder body floats ~2 mm in front of the wall there.
+Visually it's close enough that the boolean union still produces a
+watertight STL, but for a "perfectly snapped to wall" look the anchor
+would need to be computed from the wall-slope equation. Flagged for
+future iteration.
+
+**Tag**: v5.8.4.

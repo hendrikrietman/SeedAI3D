@@ -109,11 +109,21 @@ module feeder_connector_bore() {
                          h = FEEDER_CONNECTOR_LEN + HOPPER_WALL + 10);
 }
 
-// Vac-cleanup connector retired in v5.8.2 — with the hopper now small and
-// positioned at the pickup zone, the vac-stub anchor would land inside
-// the open hopper-top cavity, breaking 2-manifoldness. Re-add when /
-// if a top-mount cleanup is reinstated (probably as a separate module
-// not booleaned with the hopper).
+// Vac-cleanup tube — standalone module (NOT booleaned with hopper).
+// Mouth sits inside the open hopper-top cavity at z=mouth_z; tube
+// extends up at 80° elev (10° off vertical), tilting toward operator
+// (-Y) so the external hose connector is reachable. Same OD/ID as the
+// feeder per Hendrik's request ("vac as large as feeder").
+module vac_tube() {
+    translate([VAC_TUBE_X, VAC_TUBE_Y, VAC_TUBE_MOUTH_Z])
+        rotate([90 - VAC_ELEV_DEG, 0, 0])
+            difference() {
+                cylinder(d = VAC_TUBE_OD, h = VAC_TUBE_TOTAL_LEN);
+                translate([0, 0, -1])
+                    cylinder(d = VAC_CHANNEL_ID,
+                             h = VAC_TUBE_TOTAL_LEN + 2);
+            }
+}
 
 module hopper() {
     difference() {
@@ -183,12 +193,14 @@ if (EXPORT_MODE) {
     if      (EXPORT_PART == "hopper")    hopper();
     else if (EXPORT_PART == "lid")       lid();
     else if (EXPORT_PART == "dust_ring") dust_ring();
-    else { hopper(); lid(); dust_ring(); }
+    else if (EXPORT_PART == "vac_tube")  vac_tube();
+    else { hopper(); lid(); dust_ring(); vac_tube(); }
 } else {
     cross_section_x(ENABLE_CROSS_SECTION) {
         color([0.72, 0.72, 0.80, 0.35]) hopper();
         color([0.72, 0.72, 0.80, 0.30]) lid();
         color([0.55, 0.10, 0.10, 0.85]) dust_ring();
+        color([0.30, 0.30, 0.32, 0.85]) vac_tube();
         petg_blue() disc();
     }
 }

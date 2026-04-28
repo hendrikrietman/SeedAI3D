@@ -546,6 +546,33 @@ def check_lid(stl_path: Path) -> list[CheckResult]:
     return results
 
 
+def check_vac_tube(stl_path: Path) -> list[CheckResult]:
+    """Phase-7 vac-cleanup tube (re-added v5.8.4) — standalone STL,
+    matches feeder dimensions (OD 18 / ID 14). Mouth at hopper-pool."""
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+    # X extent: tube OD = 18 (cylinder symmetric around its axis,
+    # X-axis perpendicular to tube tilt direction).
+    extents = mesh.extents
+    results.append(CheckResult(
+        "x_extent_OD",
+        abs(extents[0] - 18.0) < 0.5,
+        f"x_extent={extents[0]:.2f}, expected≈18 (tube OD)",
+    ))
+    return results
+
+
 def check_dust_ring(stl_path: Path) -> list[CheckResult]:
     """Phase-7 dust-seal ring: NBR rubber annular ring on lid bottom face.
     OD decoupled from lid OD in v5.8.1: ring stays at Ø 144 (disc rim
@@ -886,11 +913,19 @@ def main() -> int:
     for r in dust_results:
         print(r)
 
+    print()
+    print("=== Phase 7 V5: vac-cleanup tube ===")
+    vactube_stl = ROOT / "stl" / "v5_7" / "vac_tube.stl"
+    vactube_results = check_vac_tube(vactube_stl)
+    for r in vactube_results:
+        print(r)
+
     all_results = (disc_results + pool_results + clearance_results
                    + afstrijker_results + afstrijker2_results
                    + geleider_results + drop_tube_results
                    + mal_results + pinion_results
-                   + hopper_results + lid_results + dust_results)
+                   + hopper_results + lid_results + dust_results
+                   + vactube_results)
     failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 
