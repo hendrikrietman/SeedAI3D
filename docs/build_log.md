@@ -653,3 +653,60 @@ Watertight. Copied to `viewer/models/`.
 - Seed-loss tracking visualisation (prove zero seed loss between lines)
 
 **Tag**: v5.5.2.
+
+## V5.6.0 — Phase 5: top-half recovery bowl + clean-cycle animation (2026-04-28)
+
+Closes Phase 5 of the build plan. Two new pieces and a batch of audit
+cleanups, all in one commit so the working tree stays coherent for the
+backup tag.
+
+**5a — Top-half recovery bowl (`scad/v5_5_recovery_bowl.scad`).**
+Half-disc shell, footprint y ≥ 0, R_OUTER=55, z ∈ [22, 50]. Mirrors the
+bottom-pool footprint (D10) on the y ≥ 0 side for visual symmetry.
+Floor at z=22 sits flush on the geleider top; a 40×20 mm rectangular
+drain in the floor (centred on y=30) opens directly into the geleider
+catch-mouth. Disc-envelope subtraction (3 mm clearance) carves a slot
+where the disc rim crosses the bowl outer wall (at world (±41.2, 36.5,
+36.5)) — same approach as D6/D7. STL: 286 v / 572 f, watertight,
+bounds x[−55,+55] y[0,55] z[22,50]. All seven Phase-5 validation checks
+PASS, including disc-clearance at min=2.92 mm vs nominal 3.0 (the
+0.08 mm gap is the chord-error of $fn=64 at R=66; tolerance set to
+0.15 mm in the validator).
+
+**5b — Self-cleaning vacuum cycle (viewer-only).** New "Start clean
+cycle" button in the controls panel. While active:
+- Vacuum is forced to 0 internally (the existing vacuum<5 path detaches
+  every attached seed back into the falling pile).
+- Pool refill is suppressed — the compartment is allowed to empty.
+- Pool seeds are pulled into the top-mount vac-cleanup tube at
+  CLEAN_RATE = 3 seeds/s. Each suck is a two-stage glide animation:
+  pool position → tube mouth (0, −42, −43), 0.40 s eased; then mouth →
+  tube end (0, −56.4, +40.7), 0.50 s linear. Seed counts toward a new
+  cumulative `Cleaned` HUD field.
+- Toggling off resumes normal seeding (refill kicks back in, vacuum
+  follows the slider).
+
+**Audit cleanups bundled in same commit:**
+- `viewer/viewer.js` `POOL` block updated to half-disc geometry
+  (rOuter=55, depth=33, zFloor=−50). `placePoolSeed()` rewritten to
+  spawn within the half-disc footprint with chord-bound x range.
+- `stl/v4_2/{disc,reservoir}.stl` deleted (V4 reservoir architecture
+  retired in commit 8f1f881; the orphan STLs had no SCAD source).
+- `docs/decisions.md` D8 (FLIP), D9 (vacuum-respecting glide), D10
+  (half-disc footprint) backfilled — all three were documented in the
+  build log but never promoted to numbered decisions.
+
+**Validation**: `python3 validation/geometry_check.py` — all 36 checks
+PASS (Phase 1 disc + Phase 2 V5 pool + clearance + Phase 3 afstrijkers
++ geleider + drop-tube + Phase 4 chamber + Phase 5 bowl).
+
+**Browser verification**: not performed in this build environment (no
+display). The viewer code paths are coherent (anchor-verify block
+gates every STL load with PASS/FAIL log) but the clean-cycle animation
+and the recovery-bowl rendering still need a human eyeball before
+Phase 6.
+
+**Iso render**: `renders/v5_5/v5_5_iso.png`.
+
+**Tag**: v5.6.0. Also tagging `phase5-backup` per Hendrik's request as
+the rollback point before Phase 6 (gear drive + motor mount) starts.

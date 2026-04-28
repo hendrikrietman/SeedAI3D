@@ -67,6 +67,11 @@ PARAMS = {
     "VAC_NIPPLE_LENGTH": 30.0,
     "VAC_SECTOR_START_DEG": 90.0,
     "VAC_SECTOR_END_DEG": 270.0,
+    "RECOVERY_BOWL_R_OUTER": 55.0,
+    "RECOVERY_BOWL_WALL": 2.0,
+    "RECOVERY_BOWL_Z_FLOOR": 22.0,
+    "RECOVERY_BOWL_Z_TOP": 50.0,
+    "RECOVERY_BOWL_DISC_CLEARANCE": 3.0,
 }
 
 
@@ -489,6 +494,79 @@ def check_vacuum_chamber(stl_path: Path) -> list[CheckResult]:
     return results
 
 
+def check_recovery_bowl(stl_path: Path, disc_stl: Path) -> list[CheckResult]:
+    """Phase-5 top-half recovery bowl: half-disc shell, footprint y ≥ 0,
+    R_OUTER=55, z ∈ [22, 50]. Bowl floor must align with the geleider mouth
+    drain. Disc-envelope subtraction must leave the bowl watertight."""
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # X extent = 2 · R_OUTER = 110.
+    extents = mesh.extents
+    results.append(CheckResult(
+        "x_extent",
+        abs(extents[0] - 2 * PARAMS["RECOVERY_BOWL_R_OUTER"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{2 * PARAMS['RECOVERY_BOWL_R_OUTER']}",
+    ))
+
+    # Y extent: half-disc opens at y=0, curves to y=R_OUTER. So y_min≈0,
+    # y_max≈R_OUTER.
+    y_min, y_max = float(mesh.bounds[0, 1]), float(mesh.bounds[1, 1])
+    results.append(CheckResult(
+        "y_opens_at_zero",
+        abs(y_min) < 0.5,
+        f"y_min={y_min:.2f}, expected≈0 (half-disc opens at y=0)",
+    ))
+    results.append(CheckResult(
+        "y_max_at_R",
+        abs(y_max - PARAMS["RECOVERY_BOWL_R_OUTER"]) < 0.5,
+        f"y_max={y_max:.2f}, expected≈{PARAMS['RECOVERY_BOWL_R_OUTER']}",
+    ))
+
+    # Z range: floor at 22, top at 50.
+    z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
+    results.append(CheckResult(
+        "z_floor",
+        abs(z_min - PARAMS["RECOVERY_BOWL_Z_FLOOR"]) < 0.5,
+        f"z_min={z_min:.2f}, expected={PARAMS['RECOVERY_BOWL_Z_FLOOR']}",
+    ))
+    results.append(CheckResult(
+        "z_top",
+        abs(z_max - PARAMS["RECOVERY_BOWL_Z_TOP"]) < 0.5,
+        f"z_max={z_max:.2f}, expected={PARAMS['RECOVERY_BOWL_Z_TOP']}",
+    ))
+
+    # Bowl must clear the disc envelope by ≥ DISC_CLEARANCE. The numeric
+    # tolerance absorbs the chord-error of the OpenSCAD $fn=64 facets at
+    # rim radius 66: R·(1 − cos(π/$fn)) ≈ 0.08 mm. We accept anything
+    # within 0.15 mm of the nominal clearance — the geometric design is
+    # correct, the gap is faceting noise.
+    if disc_stl.exists():
+        disc = trimesh.load(disc_stl, force="mesh")
+        pts, _ = trimesh.sample.sample_surface(mesh, 3000)
+        _, dists, _ = trimesh.proximity.closest_point(disc, pts)
+        min_d = float(dists.min())
+        results.append(CheckResult(
+            "disc_clearance",
+            min_d >= PARAMS["RECOVERY_BOWL_DISC_CLEARANCE"] - 0.15,
+            f"min={min_d:.3f} mm, required≥{PARAMS['RECOVERY_BOWL_DISC_CLEARANCE']} "
+            f"(0.15 mm tolerance for $fn=64 chord error)",
+        ))
+
+    return results
+
+
 def main() -> int:
     print("=== Phase 1: disc ===")
     disc_stl_v1 = ROOT / "stl" / "v4_1" / "disc.stl"
@@ -568,10 +646,17 @@ def main() -> int:
     for r in vac_results:
         print(r)
 
+    print()
+    print("=== Phase 5 V5: recovery bowl ===")
+    bowl_stl = ROOT / "stl" / "v5_5" / "recovery_bowl.stl"
+    bowl_results = check_recovery_bowl(bowl_stl, disc_stl_v2)
+    for r in bowl_results:
+        print(r)
+
     all_results = (disc_results + pool_results + clearance_results
                    + afstrijker_results + afstrijker2_results
                    + geleider_results + drop_tube_results
-                   + vac_results)
+                   + vac_results + bowl_results)
     failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 

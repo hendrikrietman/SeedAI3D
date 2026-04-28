@@ -123,6 +123,105 @@ To restore ≥5 mm perpendicular clearance with the outlet centered above PICKUP
 
 ---
 
+## D8 — V5 FLIP: seed-attachment side swapped to operator-visible (post-Phase-4)
+
+**Date:** 2026-04-27.
+**Question:** Phase 4 closed with the vacuum chamber on the operator-visible
+side of the disc and seeds attaching on the operator-far side. Hendrik
+inverted this: chamber must hide *behind* the disc, seeds and afstrijkers
+must sit on the *visible* face.
+
+**Decision:** Post-flip frame — `FRONT_NORMAL = (0, −sin45°, +cos45°)`,
+i.e. seeds attach in the `disc_plane_eq > 0` half-space (camera at
++X, −Y, +Z is in eq>0). Chamber centroid post-flip is `(−26.67, +6.67,
+−6.67)`, eq = −9.43 (opposite side, hidden).
+
+**Why:** Operator must see the seeds and the singulator blades during
+calibration; the rotating-seal interface against the disc back face is
+internal and doesn't need to be visible. Same orientation as physical
+Monosem/MaterMacc machines.
+
+**Implementation:** SCAD-side `mirror([0,0,1])` added to `vacuum_chamber()`
+before the tilt rotation; both afstrijker SCAD modules had their pre-tilt
+mirror *removed* so they stay on the seed-attachment face. Anchor-based
+verification in `viewer.js` (centroid-vs-expected with 1.5–2.0 mm tol)
+gates every STL load and prints PASS/FAIL to console.
+
+**Files changed:** `scad/v5_3_barriere_geleider.scad`,
+`scad/v5_4_vacuum_chamber.scad`, `viewer/viewer.js` (anchor block).
+
+---
+
+## D9 — Vacuum-respecting release glide instead of free-fall + geleider catch
+
+**Date:** 2026-04-27.
+**Question:** At natural release (θ=90°) the seed has tangential velocity
+~22 mm/s in +X (5 RPM). A free-fall trajectory with gravity passes through
+the disc-body slab `|z−y| ≤ 2.83 mm` on its way down to the geleider
+catch-mouth — the seed visibly clips through the rotating disc.
+
+**Decision:** Two-stage glide replaces free-fall when vacuum is on:
+- **Stage 1** (0.45 s): seed slides along the disc-front face from rim
+  point at θ=90° inward to a midpoint above the central axis (R=0,
+  Z=+3 in disc-local), staying 3 mm above the disc face throughout.
+- **Stage 2** (0.30 s): vertical drop through the central Ø50 hole into
+  the geleider throat at z=−5.
+
+The original free-fall + geleider-catch path is preserved as a fallback
+for vacuum-loss mid-cycle (the "missed" counter still increments when
+free-falling seeds escape the catch-mouth).
+
+**Why:** Physically realistic — vacuum still holds the seed against the
+disc as it crosses θ=90°; gravity wins only after the seed clears the
+rim. The two-phase trajectory respects this without simulating full
+fluid dynamics. Visually no clipping through the disc.
+
+**Files changed:** `viewer/viewer.js` (`glideToThroat()`,
+`updateGliding()` two-stage branch).
+
+---
+
+## D10 — Half-disc bottom pool footprint (v5.5.0–v5.5.2)
+
+**Date:** 2026-04-27.
+**Question:** Original V5 pool was a 60 × 40 × 20 mm rectangular box at
+floor z=−45. Several issues stacked up: tooth tips at θ=270° dipped
+3 mm below floor (D6); side walls were vertical 4-mm slits where the
+disc passed through (leak risk); fixed front/back orientation didn't
+catch seeds detaching mid-arc.
+
+**Decision (three iterations):**
+1. **v5.5.0** — relocated vac-cleanup tube from front-mount (45° elev)
+   to top-mount (80° elev = 10° off vertical), widened feeder bore from
+   OD16/ID12 to OD18/ID14 (reduces soybean bridging risk).
+2. **v5.5.1** — V-cone bottom in both X and Y (4 × 4 mm floor patch),
+   floor lowered from −37 to −50 mm. Resolves the long-standing
+   `disc_above_floor` validation failure: with floor at −50 the disc
+   teeth (lowest at z ≈ −48.1) no longer reach the floor at all.
+3. **v5.5.2** — rectangular footprint replaced with a half-disc body
+   (R_OUTER=55, opening at y=0, footprint y ≤ 0). Wraps the disc
+   bottom 180° in plan view → catches seeds detaching anywhere in
+   the bottom-arc XY-projection.
+
+**Trade-off accepted:** half-disc + single-point V-cone gives 28° side-
+slope (toward ±X), below the ≥35° self-feeding spec. Soybean rest angle
+is ~25–30°, so it works but is tight; mitigations deferred (curved
+trough following disc rim, rim-following internal rib, or tighter
+R_OUTER ≈ 40 for ~38° slopes at the cost of catch area).
+
+**Why this footprint:** R_OUTER=55 was sized to keep the existing tube
+anchors INSIDE the half-disc body (feeder anchor radius 52.2, vac
+anchor radius 42, both < 55). Phase-5 recovery bowl mirrors this
+R_OUTER on the y ≥ 0 side for visual symmetry.
+
+**Files changed:** `scad/lib/parameters.scad` (SEED_POOL_R_OUTER,
+floor=−50, depth=33, feeder/vac tube params),
+`scad/v5_2_seed_pool.scad` (half-cylinder body, V-cone hull cavity,
+vac tube tilted 80° top-mount), `validation/geometry_check.py`
+(`y_back_edge` replaces `y_back_face`).
+
+---
+
 ## D3 — Three.js vendoring strategy (Phase 1)
 
 **Decision:** Vendor only the three files we use (`three.module.js`, `OrbitControls.js`, `STLLoader.js`) into `viewer/vendor/`, total 1.3 MB. Resolve via importmap.

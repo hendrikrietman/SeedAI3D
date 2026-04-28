@@ -102,3 +102,21 @@ dd { margin: 0; color: #1a1a1a; }
   color: #666;
   font-size: 11px;
 }
+
+.btn {
+  flex: 1 1 auto;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: #2d5016;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn:hover { background: #3d6a1d; }
+.btn.active {
+  background: #b3431a;
+}
+.btn.active:hover { background: #c8501e; }

@@ -93,11 +93,20 @@ const AFSTRIJKER2_THETA =  95 * Math.PI / 180;
 const PICKUP_POS  = new THREE.Vector3(0, -29.698, -29.698);
 const RELEASE_POS = new THREE.Vector3(0,  29.698,  29.698);
 
-// Pool geometry — raised 8 mm in Phase-3 visual fix.
+// Pool geometry — half-disc footprint (v5.5.2). R_OUTER=55 in plan view,
+// footprint y ≤ 0; floor lowered to z=-50 (v5.5.1) to clear tooth tips;
+// V-cone bottom centred at (0, -30, floor+2). Mirrors parameters.scad.
 const POOL = {
-  x: 60, y: 40, depth: 20,
-  zTop: -17, zFloor: -37, yCenter: -30,
+  rOuter: 55, wall: 2, depth: 33,
+  zTop: -17, zFloor: -50, yCenter: -30,
   fillZ: -24,
+};
+
+// Recovery bowl (Phase 5a) — half-disc shell on the disc TOP half,
+// footprint y ≥ 0, R_OUTER=55, z ∈ [22, 50]. Drains via the geleider.
+const BOWL = {
+  rOuter: 55, wall: 2,
+  zFloor: 22, zTop: 50,
 };
 
 // Geleider geometry — for catch test and glide path
@@ -158,6 +167,11 @@ const vacuumChamberMat = new THREE.MeshPhongMaterial({
   side: THREE.DoubleSide, transparent: true, opacity: 0.62,
   clippingPlanes: [],
 });
+const recoveryBowlMat = new THREE.MeshPhongMaterial({
+  color: 0xc4a955, specular: 0x111114, shininess: 28,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.45,
+  clippingPlanes: [],
+});
 
 const SEED_RADIUS = 3;
 const seedGeom = new THREE.SphereGeometry(SEED_RADIUS, 14, 10);
@@ -170,6 +184,9 @@ const glidingSeedMat  = new THREE.MeshPhongMaterial({
   color: 0xf0a020, emissive: 0x402008, shininess: 50,
 });
 const exitingSeedMat  = new THREE.MeshPhongMaterial({ color: 0xa08020, shininess: 30 });
+const cleaningSeedMat = new THREE.MeshPhongMaterial({
+  color: 0x55a8d4, emissive: 0x113344, shininess: 60,
+});
 
 // ============================================================================
 //  Markers (visible — radius 2.5 mm, not microscopic)
@@ -221,6 +238,7 @@ let afstrijker2Mesh = null;
 let geleiderMesh = null;
 let dropTubeMesh = null;
 let vacuumChamberMesh = null;
+let recoveryBowlMesh = null;
 const loader = new STLLoader();
 
 const STL_CACHE_BUST = `?v=${Date.now()}`;
@@ -271,6 +289,9 @@ loadStl('./models/vacuum_chamber.stl', vacuumChamberMat, (m) => {
     `(expect >0 for back-side) | ${discPlaneEq(c) > 0 ? 'PASS' : 'FAIL'}`,
   );
 });
+loadStl('./models/recovery_bowl.stl', recoveryBowlMat, (m) => {
+  recoveryBowlMesh = m;
+});
 
 // ============================================================================
 //  Pool fill — visible seed pile, with refill so the animation never starves
@@ -282,25 +303,25 @@ scene.add(poolGroup);
 const poolSeeds = [];
 
 function placePoolSeed(seed) {
-  // Reservoir seeds must sit on the seed-side of the disc plane (eq > 0
-  // post-flip), so all visible pool fill is on the same half-space as
-  // the attached seeds and the operator's view. disc_plane_eq(0,y,z) =
-  // -sin45°·y + cos45°·z, so eq > 0 ⇔ z > y. We pick the layer-z first,
-  // then clamp y so y < z − 1.5 mm (margin keeps the seed clear of the
-  // disc plane). The result is a wedge of seeds piling up against the
-  // far-y end of the pool — physically what happens when a tilted disc
-  // dips into a pool: seeds collect on the lower side of the dipping
-  // edge.
-  const yMin = POOL.yCenter - POOL.y / 2 + 4;
-  const yMax = POOL.yCenter + POOL.y / 2 - 4;
-  const x = (Math.random() - 0.5) * 12;
+  // Half-disc pool footprint (v5.5.2): y ∈ [-R_OUTER+wall, -wall] curved by
+  // x² + y² ≤ (R_OUTER - wall)². Seeds must sit on the seed-side of the
+  // disc plane (eq > 0 post-flip): disc_plane_eq(0,y,z) = -sin45°·y +
+  // cos45°·z > 0 ⇔ z > y. With y < 0 this is satisfied for any reasonable
+  // z; the dominant constraint is staying below fillZ and inside the half-
+  // disc footprint. Seeds layer from floor upward.
+  const innerR = POOL.rOuter - POOL.wall - 2;
+  const yMin = -innerR;
+  const yMax = -POOL.wall - 2;
   const layer = Math.floor(poolSeeds.length / 14);
   const z_layer = POOL.zFloor + SEED_RADIUS
                 + layer * (SEED_RADIUS * 1.6)
                 + (Math.random() - 0.5) * 1.5;
   const z = Math.min(z_layer, POOL.fillZ);
-  const y_max_eff = Math.min(yMax, z - 1.5);
-  const y = yMin + Math.random() * Math.max(0.5, y_max_eff - yMin);
+  const y = yMin + Math.random() * (yMax - yMin);
+  // x bounded by half-disc chord at this y.
+  const xMaxChord = Math.sqrt(Math.max(0, innerR * innerR - y * y)) - 2;
+  const xRange = Math.max(2, xMaxChord);
+  const x = (Math.random() - 0.5) * 2 * xRange;
   seed.position.set(x, y, z);
 }
 
@@ -330,7 +351,7 @@ while (poolSeeds.length < POOL_TARGET) spawnPoolSeed();
     `[FRONT_NORMAL] pool top seed at (${top.position.x.toFixed(2)}, ` +
     `${top.position.y.toFixed(2)}, ${top.position.z.toFixed(2)}) ` +
     `→ disc_plane_eq = ${eqTop.toFixed(3)} ` +
-    `(<0 means front side, expected for a pool seed near the floor)`,
+    `(>0 means seed-side post-FLIP, expected for a pool seed)`,
   );
 }
 
@@ -523,13 +544,39 @@ function holeIsAt(n, phi, target, tol) {
 const GRAVITY = 9810;          // mm/s²
 const TIME_SCALE = 0.18;       // visualisation slow-down
 
-const fallingGroup = new THREE.Group(); scene.add(fallingGroup);
-const glidingGroup = new THREE.Group(); scene.add(glidingGroup);
-const exitingGroup = new THREE.Group(); scene.add(exitingGroup);
+const fallingGroup  = new THREE.Group(); scene.add(fallingGroup);
+const glidingGroup  = new THREE.Group(); scene.add(glidingGroup);
+const exitingGroup  = new THREE.Group(); scene.add(exitingGroup);
+const cleaningGroup = new THREE.Group(); scene.add(cleaningGroup);
 
-const fallingSeeds = [];   // { mesh, vx, vy, vz, t }
-const glidingSeeds = [];   // { mesh, t, dur, p0, p1 }
-const exitingSeeds = [];   // { mesh, t, dur, p0, p1 }
+const fallingSeeds  = [];   // { mesh, vx, vy, vz, t }
+const glidingSeeds  = [];   // { mesh, t, dur, p0, p1 }
+const exitingSeeds  = [];   // { mesh, t, dur, p0, p1 }
+const cleaningSeeds = [];   // { mesh, t, stage, p0, p1, p2 }
+
+// =====================================================================
+//  Clean-cycle (Phase 5b) — operator pulls all pool seeds out via the
+//  top-mount vac-cleanup tube, leaving the compartment empty between
+//  runs / between varieties / for storage.
+//
+//  Tube geometry mirrors parameters.scad VAC_CLEAN_TUBE_*.
+//  Mouth: inside the pool at z = floor + 7 = -43.
+//  Direction: 80° elev from horizontal in -Y (tilts toward operator).
+//  Length: 25 mm in-pool + 60 mm out-pool = 85 mm total.
+// =====================================================================
+const CLEAN_RATE = 3.0;           // seeds per second sucked out of pool
+const VAC_CLEAN_MOUTH = new THREE.Vector3(0, -42, -43);
+const VAC_CLEAN_DIR = new THREE.Vector3(
+  0,
+  -Math.cos(80 * Math.PI / 180),
+  Math.sin(80 * Math.PI / 180),
+).normalize();
+const VAC_CLEAN_END = VAC_CLEAN_MOUTH.clone()
+  .add(VAC_CLEAN_DIR.clone().multiplyScalar(85));
+
+let cleanCycleActive = false;
+let cleanAccumulator = 0;
+let cleanedCount = 0;
 
 // ----- transitions -----
 function detachToFalling(seedMesh, omega, x0, y0, z0) {
@@ -611,6 +658,49 @@ function landSeed(e) {
   exitingGroup.remove(e.mesh);
   e.mesh.material = null;
   e.mesh.geometry = null;
+}
+
+function suckPoolSeedToVacTube() {
+  if (poolSeeds.length === 0) return;
+  // Pop nearest pool seed to the vac-tube mouth so the visualisation
+  // looks like the suction wins on proximity.
+  let bestIdx = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < poolSeeds.length; i++) {
+    const d = poolSeeds[i].position.distanceToSquared(VAC_CLEAN_MOUTH);
+    if (d < bestD) { bestD = d; bestIdx = i; }
+  }
+  const seed = poolSeeds.splice(bestIdx, 1)[0];
+  poolGroup.remove(seed);
+  seed.material = cleaningSeedMat;
+  cleaningGroup.add(seed);
+  cleaningSeeds.push({
+    mesh: seed, t: 0, stage: 1,
+    p0: seed.position.clone(),
+    p1: VAC_CLEAN_MOUTH.clone(),
+    p2: VAC_CLEAN_END.clone(),
+  });
+}
+
+function updateCleaning(dt) {
+  for (let i = cleaningSeeds.length - 1; i >= 0; i--) {
+    const c = cleaningSeeds[i];
+    c.t += dt;
+    if (c.stage === 1) {
+      const u = Math.min(c.t / 0.40, 1);
+      const eased = u * u * (3 - 2 * u);
+      c.mesh.position.lerpVectors(c.p0, c.p1, eased);
+      if (u >= 1) { c.stage = 2; c.t = 0; }
+    } else {
+      const u = Math.min(c.t / 0.50, 1);
+      c.mesh.position.lerpVectors(c.p1, c.p2, u);
+      if (u >= 1) {
+        cleaningGroup.remove(c.mesh);
+        cleaningSeeds.splice(i, 1);
+        cleanedCount++;
+      }
+    }
+  }
 }
 
 // ----- per-frame updates -----
@@ -716,6 +806,8 @@ const geleiderInput    = document.getElementById('show-geleider');
 const dropTubeInput    = document.getElementById('show-drop-tube');
 const vacChamberInput  = document.getElementById('show-vacuum-chamber');
 const vacGlowInput     = document.getElementById('show-vacuum-glow');
+const recoveryBowlInput = document.getElementById('show-recovery-bowl');
+const cleanBtn         = document.getElementById('clean-cycle-btn');
 
 const angleEl    = document.getElementById('info-angle');
 const poolEl     = document.getElementById('info-pool');
@@ -725,6 +817,7 @@ const inTubeEl   = document.getElementById('info-in-tube');
 const sownEl     = document.getElementById('info-sown');
 const skipEl     = document.getElementById('info-skip');
 const missEl     = document.getElementById('info-miss');
+const cleanedEl  = document.getElementById('info-cleaned');
 
 let rpm = parseFloat(rpmInput.value);
 let vacuum = parseFloat(vacuumInput.value);
@@ -744,7 +837,7 @@ vacuumInput.addEventListener('input', () => {
 csInput.addEventListener('change', () => {
   const planes = csInput.checked ? [clipPlane] : [];
   for (const m of [discMat, poolMat, afstrijkerMat, geleiderMat, dropTubeMat,
-                   vacuumChamberMat]) {
+                   vacuumChamberMat, recoveryBowlMat]) {
     m.clippingPlanes = planes;
     m.needsUpdate = true;
   }
@@ -773,6 +866,20 @@ vacChamberInput.addEventListener('change', () => {
 vacGlowInput.addEventListener('change', () => {
   holeGlowGroup.visible = vacGlowInput.checked;
 });
+recoveryBowlInput.addEventListener('change', () => {
+  if (recoveryBowlMesh) recoveryBowlMesh.visible = recoveryBowlInput.checked;
+});
+cleanBtn.addEventListener('click', () => {
+  cleanCycleActive = !cleanCycleActive;
+  if (cleanCycleActive) {
+    cleanBtn.textContent = 'Stop clean cycle';
+    cleanBtn.classList.add('active');
+  } else {
+    cleanBtn.textContent = 'Start clean cycle';
+    cleanBtn.classList.remove('active');
+    cleanAccumulator = 0;
+  }
+});
 
 // ----- resize -----
 function onResize() {
@@ -797,7 +904,19 @@ function animate() {
   rotationAngle %= 2 * Math.PI;
   if (disc) disc.setRotationFromAxisAngle(DISC_AXIS, -rotationAngle);
 
-  refillPoolIfLow();
+  // Clean-cycle override: vacuum forced off (drops attached seeds via the
+  // existing vacuum<5 path), refill suppressed (let the pool drain), and
+  // pool seeds get sucked through the vac-cleanup tube at CLEAN_RATE.
+  const effectiveVacuum = cleanCycleActive ? 0 : vacuum;
+  if (cleanCycleActive) {
+    cleanAccumulator += dt * CLEAN_RATE;
+    while (cleanAccumulator >= 1 && poolSeeds.length > 0) {
+      cleanAccumulator -= 1;
+      suckPoolSeedToVacTube();
+    }
+  } else {
+    refillPoolIfLow();
+  }
 
   // Per-hole pickup / travel / afstrijker / release
   const tol = Math.max(0.05, omega * dt * 1.2);
@@ -820,7 +939,7 @@ function animate() {
 
       // Vacuum off → seed drops immediately (no tangential velocity).
       // Most likely misses the geleider; counted as missed.
-      if (vacuum < 5) {
+      if (effectiveVacuum < 5) {
         detachToFalling(state.seed, 0,
           state.seed.position.x, state.seed.position.y, state.seed.position.z);
         holeState[n] = null;
@@ -862,7 +981,7 @@ function animate() {
     } else {
       // Pickup at θ=270° if vacuum on, hole empty, pool not empty.
       if (holeIsAt(n, rotationAngle, PICKUP_THETA, tol)) {
-        if (vacuum > 5 && poolSeeds.length > 0) {
+        if (effectiveVacuum > 5 && poolSeeds.length > 0) {
           // Take topmost (highest-z) pool seed.
           let topIdx = 0;
           for (let i = 1; i < poolSeeds.length; i++) {
@@ -874,7 +993,7 @@ function animate() {
           if (!seedsOnDiscInput.checked) seed.visible = false;
           scene.add(seed);
           holeState[n] = { seed, sawAfstrijker: false, sawAfstrijker2: false };
-        } else if (vacuum > 5) {
+        } else if (effectiveVacuum > 5) {
           // Vacuum on but pool empty — count a skip per pass per hole.
           skippedCount++;
         }
@@ -884,7 +1003,7 @@ function animate() {
 
   // Per-hole vacuum glow — visible when hole is in the chamber sector
   // (world x ≤ 0) AND vacuum is on. Position rides the rotating hole.
-  const glowVisible = vacuum > 5;
+  const glowVisible = effectiveVacuum > 5;
   for (let n = 0; n < N_HOLES; n++) {
     const wp = holeWorldPosition(n, rotationAngle);
     const inSector = wp.x <= VAC_SECTOR_X_MAX;
@@ -900,6 +1019,7 @@ function animate() {
   updateFalling(dt);
   updateGliding(dt);
   updateExiting(dt);
+  updateCleaning(dt);
 
   // HUD
   angleEl.textContent  = (rotationAngle * 180 / Math.PI).toFixed(1) + '°';
@@ -911,6 +1031,7 @@ function animate() {
   sownEl.textContent   = sownCount;
   skipEl.textContent   = skippedCount;
   missEl.textContent   = missedCount;
+  cleanedEl.textContent = cleanedCount;
 
   controls.update();
   renderer.render(scene, camera);

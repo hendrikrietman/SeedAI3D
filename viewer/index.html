@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PROTISEM V5 — Phase 4 (vacuum chamber + 4 mm holes)</title>
+  <title>PROTISEM V5 — Phase 5 (recovery bowl + clean cycle)</title>
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     {
@@ -18,8 +18,8 @@
   <div id="canvas-host"></div>
 
   <section id="controls" class="panel">
-    <h1>PROTISEM V5 · Phase 4</h1>
-    <p class="sub">Vacuum chamber + 4 mm pickup holes + corrected seed mechanics</p>
+    <h1>PROTISEM V5 · Phase 5</h1>
+    <p class="sub">Top-half recovery bowl + self-cleaning vacuum cycle</p>
 
     <div class="row">
       <label for="rpm">Disc RPM</label>
@@ -92,6 +92,15 @@
         Vacuum-glow (active hole markers)
       </label>
     </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-recovery-bowl" type="checkbox" checked />
+        Recovery bowl (top-half catch)
+      </label>
+    </div>
+    <div class="row">
+      <button id="clean-cycle-btn" class="btn">Start clean cycle</button>
+    </div>
 
     <p class="note">Drag to orbit · scroll to zoom · right-drag to pan.</p>
   </section>
@@ -107,6 +116,7 @@
       <dt>Sown (cum.)</dt>   <dd id="info-sown">0</dd>
       <dt>Skipped (cum.)</dt><dd id="info-skip">0</dd>
       <dt>Missed (cum.)</dt> <dd id="info-miss">0</dd>
+      <dt>Cleaned (cum.)</dt><dd id="info-cleaned">0</dd>
     </dl>
     <p class="note">
       Pickup θ=270° (in pool) → travel 180° on disc-front face → release θ=90°

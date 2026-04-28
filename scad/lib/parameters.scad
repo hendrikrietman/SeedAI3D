@@ -212,6 +212,27 @@ VAC_SECTOR_START_DEG = 90;    // sector angular range (disc-local), inclusive
 VAC_SECTOR_END_DEG   = 270;   // sector covers [90°, 270°] going through 180°
 
 // ==========================================================================
+// RECOVERY BOWL (Phase 5) — half-disc shell on the disc TOP half (footprint
+// y ≥ 0). Catches seeds that release outside the θ=90° window (e.g. mid-arc
+// vacuum drop, afstrijker-2 push that overshoots) and funnels them down
+// through a rectangular drain that aligns with the geleider catch-mouth
+// (40 × 20 mm at y_centre = 30, z = 22). R_OUTER mirrors the bottom pool
+// for visual symmetry; the bowl is open at the top (z > Z_TOP is just air).
+// Disc-envelope subtraction with 3 mm clearance carves the slot where the
+// disc rim crosses the bowl outer wall (at world (±41.2, 36.5, 36.5)) —
+// same trick as the bottom pool side walls (D6) and the geleider (D7).
+// ==========================================================================
+RECOVERY_BOWL_R_OUTER       = 55;
+RECOVERY_BOWL_WALL          = 2;
+RECOVERY_BOWL_R_INNER       = RECOVERY_BOWL_R_OUTER - RECOVERY_BOWL_WALL;
+// Floor sits flush on top of the geleider (mouth top at z = 22). Top is
+// 20 mm above release point (z = 29.7) so the bowl walls are tall enough
+// to retain a bouncing seed.
+RECOVERY_BOWL_Z_FLOOR       = 22;
+RECOVERY_BOWL_Z_TOP         = 50;
+RECOVERY_BOWL_DISC_CLEARANCE = 3;
+
+// ==========================================================================
 // HOUSING (used in later phases, declared here for reference)
 // ==========================================================================
 HOUSING_X            = 180;
