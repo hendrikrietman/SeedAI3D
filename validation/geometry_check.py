@@ -74,6 +74,18 @@ PARAMS = {
     "PINION_CENTRE_X": -75.0,
     "MOTOR_BODY_SIZE": 42.0,
     "MOTOR_BODY_LENGTH": 47.0,
+    "HOPPER_TOP_X": 100.0,
+    "HOPPER_TOP_Y": 80.0,
+    "HOPPER_BOTTOM_X": 30.0,
+    "HOPPER_BOTTOM_Y": 30.0,
+    "HOPPER_HEIGHT": 80.0,
+    "HOPPER_BOTTOM_Z": -47.0,
+    "HOPPER_TOP_Z": 33.0,
+    "HOPPER_POOL_FLOOR_Z": -67.0,
+    "HOPPER_Y_CENTRE": -46.67,
+    "LID_OD": 144.0,
+    "LID_THICKNESS": 4.0,
+    "DUST_RING_THICKNESS": 3.0,
 }
 
 
@@ -453,6 +465,109 @@ def check_drop_tube(stl_path: Path) -> list[CheckResult]:
     return results
 
 
+def check_hopper(stl_path: Path) -> list[CheckResult]:
+    """Phase-7 hopper: vertical funnel built in world coords. Wide top
+    (100×80) at z=+33, narrow bottom (30×30) at z=-47, pool floor at z=-67."""
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+
+    # X extent: top wide is 100, plus ±2 for any connector overshoot
+    extents = mesh.extents
+    results.append(CheckResult(
+        "x_extent",
+        abs(extents[0] - PARAMS["HOPPER_TOP_X"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['HOPPER_TOP_X']}",
+    ))
+
+    # Z range: top connector overshoots top, vac-cleanup connector
+    # tilted 80° extends ~+30 above hopper top. Pool floor at -67.
+    z_min, z_max = float(mesh.bounds[0, 2]), float(mesh.bounds[1, 2])
+    results.append(CheckResult(
+        "z_floor",
+        abs(z_min - PARAMS["HOPPER_POOL_FLOOR_Z"]) < 0.5,
+        f"z_min={z_min:.2f}, expected={PARAMS['HOPPER_POOL_FLOOR_Z']}",
+    ))
+    results.append(CheckResult(
+        "z_top_or_higher",
+        z_max >= PARAMS["HOPPER_TOP_Z"] - 0.5,
+        f"z_max={z_max:.2f}, expected ≥ {PARAMS['HOPPER_TOP_Z']} (vac connector extends higher)",
+    ))
+
+    # Y extent (front-back): hopper-top opening alone is centered at
+    # HOPPER_Y_CENTRE with width HOPPER_TOP_Y (= y_min ≈ -86.67). Feeder
+    # connector tilted 60° extends further in -Y by sin(60°)·~27 ≈ 13.5
+    # mm + connector OD/2. So y_min should be at least 12 mm beyond the
+    # top opening's front edge.
+    front_edge_y = PARAMS["HOPPER_Y_CENTRE"] - PARAMS["HOPPER_TOP_Y"] / 2
+    results.append(CheckResult(
+        "y_extent_with_connector",
+        mesh.bounds[0, 1] <= front_edge_y - 12,
+        f"y_min={mesh.bounds[0,1]:.2f}, expected ≤ {front_edge_y - 12:.2f} "
+        f"(top edge {front_edge_y:.2f} + ≥12 mm feeder connector reach)",
+    ))
+    return results
+
+
+def check_lid(stl_path: Path) -> list[CheckResult]:
+    """Phase-7 protective lid: circular Ø 144 × 4 mm, tilted 45° around X."""
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+    # X extent: lid OD unchanged by X-tilt = 144.
+    extents = mesh.extents
+    results.append(CheckResult(
+        "x_extent_OD",
+        abs(extents[0] - PARAMS["LID_OD"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['LID_OD']} (lid OD)",
+    ))
+    return results
+
+
+def check_dust_ring(stl_path: Path) -> list[CheckResult]:
+    """Phase-7 dust-seal ring: NBR rubber annular ring on lid bottom face."""
+    results: list[CheckResult] = []
+    if not stl_path.exists():
+        return [CheckResult("file_exists", False, f"missing: {stl_path}")]
+
+    mesh = trimesh.load(stl_path, force="mesh")
+    results.append(CheckResult(
+        "file_exists", True,
+        f"{stl_path.name} ({len(mesh.vertices)} vertices, {len(mesh.faces)} faces)",
+    ))
+    results.append(CheckResult(
+        "watertight", bool(mesh.is_watertight),
+        f"is_watertight={mesh.is_watertight}",
+    ))
+    extents = mesh.extents
+    results.append(CheckResult(
+        "x_extent_OD",
+        abs(extents[0] - PARAMS["LID_OD"]) < 1.0,
+        f"x_extent={extents[0]:.2f}, expected≈{PARAMS['LID_OD']} (ring OD = lid OD)",
+    ))
+    return results
+
+
 def check_disc_mal(stl_path: Path, disc_stl: Path) -> list[CheckResult]:
     """Phase-6 integrated mal-plate. Plate 180×180×15 mm tilted 45° around
     world-X. Validates bounding box, watertightness, and that the plate
@@ -697,33 +812,12 @@ def main() -> int:
         except Exception as exc:
             print(f"[WARN] disc cross-section render failed: {exc}")
 
-    print()
-    print("=== Phase 2 V5: seed pool ===")
-    pool_stl = ROOT / "stl" / "v5_2" / "seed_pool.stl"
+    # Phase 2 V5 seed-pool / floor-clearance checks retired in Phase 7
+    # (seed_pool archived; hopper takes over). disc_stl_v2 path still
+    # used by the geleider clearance check below.
+    pool_results = []
+    clearance_results = []
     disc_stl_v2 = ROOT / "stl" / "v5_2" / "disc.stl"
-    pool_results = check_seed_pool(pool_stl)
-    for r in pool_results:
-        print(r)
-
-    print()
-    print("=== Phase 2 V5: disc-pool floor clearance ===")
-    clearance_results = check_disc_floor_clearance(
-        disc_stl_v2, pool_stl, min_mm=PARAMS["MIN_FLOOR_CLEARANCE_MM"]
-    )
-    for r in clearance_results:
-        print(r)
-
-    if disc_stl_v2.exists() and pool_stl.exists():
-        try:
-            disc = trimesh.load(disc_stl_v2, force="mesh")
-            pool = trimesh.load(pool_stl, force="mesh")
-            combined = trimesh.util.concatenate([disc, pool])
-            render_cross_section_png(
-                combined, ROOT / "renders" / "v5_2" / "assembly_cross_section.png"
-            )
-            print("→ renders/v5_2/assembly_cross_section.png")
-        except Exception as exc:
-            print(f"[WARN] assembly cross-section render failed: {exc}")
 
     print()
     print("=== Phase 3 V5: afstrijker ===")
@@ -767,10 +861,32 @@ def main() -> int:
     for r in pinion_results:
         print(r)
 
+    print()
+    print("=== Phase 7 V5: hopper (transparent housing) ===")
+    hopper_stl = ROOT / "stl" / "v5_7" / "hopper.stl"
+    hopper_results = check_hopper(hopper_stl)
+    for r in hopper_results:
+        print(r)
+
+    print()
+    print("=== Phase 7 V5: protective lid ===")
+    lid_stl = ROOT / "stl" / "v5_7" / "lid.stl"
+    lid_results = check_lid(lid_stl)
+    for r in lid_results:
+        print(r)
+
+    print()
+    print("=== Phase 7 V5: dust-seal ring ===")
+    dust_stl = ROOT / "stl" / "v5_7" / "dust_ring.stl"
+    dust_results = check_dust_ring(dust_stl)
+    for r in dust_results:
+        print(r)
+
     all_results = (disc_results + pool_results + clearance_results
                    + afstrijker_results + afstrijker2_results
                    + geleider_results + drop_tube_results
-                   + mal_results + pinion_results)
+                   + mal_results + pinion_results
+                   + hopper_results + lid_results + dust_results)
     failed = [r for r in all_results if not r.passed]
     return 1 if failed else 0
 

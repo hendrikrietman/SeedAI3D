@@ -197,6 +197,55 @@ DROP_TUBE_Z_TOP    = GELEIDER_THROAT_Z;     // joins geleider throat (z=-6)
 DROP_TUBE_Z_BOTTOM = -52;                    // exits below pool floor (-45)
 
 // ==========================================================================
+// PHASE 7 — TRANSPARENT HOUSING (hopper + integrated tubes + protective lid).
+// Replaces archived v5_2_seed_pool.scad. Funnel-shaped hopper sits below
+// the disc with disc-rim dipping into the pool at the narrow bottom.
+// Feeder + vac-cleanup tubes are now channels through the housing wall
+// (only short connector stubs protrude). Protective lid covers the disc
+// front with a rubber dust-seal ring at the disc-OD radius.
+// ==========================================================================
+
+// --- Hopper (funnel) — built in WORLD coords (gravity along -Z), not
+//     tilted with the disc. Top is wide (operator pours seeds in here),
+//     bottom is narrow (last seeds congregate at pickup zone).
+HOPPER_TOP_X         = 100;
+HOPPER_TOP_Y         = 80;
+HOPPER_BOTTOM_X      = 30;
+HOPPER_BOTTOM_Y      = 30;
+HOPPER_HEIGHT        = 80;
+HOPPER_WALL          = 2;
+HOPPER_POOL_DEPTH    = 20;
+// Bottom (narrow) sits centred under the disc-rim θ=270° point at
+// world (0, -46.67, -46.67). Bottom plan-position: x=0, y=-46.67.
+// Bottom Z: at the disc-rim Z so the disc dips into the pool surface.
+HOPPER_BOTTOM_Z      = -47;          // top of pool ≈ disc-rim level
+HOPPER_TOP_Z         = HOPPER_BOTTOM_Z + HOPPER_HEIGHT;        // +33
+HOPPER_POOL_FLOOR_Z  = HOPPER_BOTTOM_Z - HOPPER_POOL_DEPTH;    // -67
+HOPPER_X_CENTRE      = 0;
+HOPPER_Y_CENTRE      = -46.67;       // = -PICKUP_HOLE_RADIUS · cos(45°) for θ=270°
+
+// --- Feeder tube — channel cast into front-side housing wall ---
+FEEDER_CHANNEL_ID    = 14;
+FEEDER_CONNECTOR_LEN = 25;           // protruding stub for hose attach
+FEEDER_ELEV_DEG      = 60;
+
+// --- Vac-cleanup tube — channel cast into top side housing wall ---
+VAC_CHANNEL_ID       = 22;
+VAC_CONNECTOR_LEN    = 30;
+VAC_ELEV_DEG         = 80;
+VAC_MOUTH_OFFSET_Z   = 8;            // mouth above hopper-narrow-bottom
+
+// --- Protective lid + rubber dust-seal ring ---
+LID_OD               = 144;          // 6 mm > disc OD with teeth (132)
+LID_ID_RING          = 130;          // dust-ring inner Ø, just inside disc OD
+LID_THICKNESS        = 4;
+LID_OFFSET_FROM_DISC = 8;            // along disc-front-normal direction
+DUST_RING_THICKNESS  = 3;
+// Lid sits in disc-local (front side, +Z direction) at distance LID_OFFSET
+// from disc-front face. Disc-front face at disc-local Z=+2. Lid front at
+// disc-local Z = +2 + LID_OFFSET = +10.
+
+// ==========================================================================
 // PHASE 6 — DISC-MAL (integrated mal-plate). Replaces standalone Phase-4
 // vacuum chamber (archived) by absorbing it as a cavity inside a flat
 // structural plate that also holds the disc, mounts the motor, and

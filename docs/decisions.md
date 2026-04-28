@@ -332,6 +332,36 @@ something to revisit when Phase 7 would have been built.
 
 ---
 
+## D13 — Phase 7 transparent housing; mal-plate disc-recess overlap accepted
+
+**Date:** 2026-04-28.
+**Question:** Phase 7 introduces a hopper that the disc-rim must dip into
+at θ=270°. The mal-plate (Phase 6) has a Ø 134 disc-recess that fully
+encloses the disc rim at every θ. Cutout in mal-plate would let disc-rim
+access the hopper but violates the spec's "DO NOT TOUCH mal-plate" rule.
+
+**Decision:** Accept the visual overlap between hopper and mal-plate at
+θ=270° in the viewer. Both meshes render independently; the disc-rim
+visually dips into the hopper through the mal-plate volume. This is
+inconsistent for physical hardware but acceptable for the visualisation
+model.
+
+**Why not a surgical cutout:** Hendrik's "DO NOT TOUCH mal-plate" rule
+is more important than geometric realism for this iteration. A future
+phase can punch the cutout when ordering / printing the real plate.
+
+**Why not "discard the mal-plate":** the mal-plate carries the chamber,
+the O-ring groove, the motor mount, and the gear cutout. Removing it
+would unwind a lot of Phase 6 work for marginal visual gain.
+
+**Consequence:** Same kind of "leak" as the existing seed-pool / geleider
+slot subtractions (D6, D7) — the digital model doesn't enforce volume
+exclusivity. Real hardware will need a properly cut access window.
+
+**Files affected:** None. The overlap is pure visualisation.
+
+---
+
 ## D3 — Three.js vendoring strategy (Phase 1)
 
 **Decision:** Vendor only the three files we use (`three.module.js`, `OrbitControls.js`, `STLLoader.js`) into `viewer/vendor/`, total 1.3 MB. Resolve via importmap.

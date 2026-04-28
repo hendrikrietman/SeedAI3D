@@ -44,7 +44,7 @@
 include <lib/parameters.scad>;
 use     <lib/helpers.scad>;
 use     <v4_1_disc.scad>;
-use     <v5_2_seed_pool.scad>;
+// v5_2_seed_pool.scad archived in Phase 7 (replaced by housing).
 use     <v5_3_barriere_geleider.scad>;
 
 // ----- customizer flags -----
@@ -268,7 +268,6 @@ if (EXPORT_MODE) {
     else if (EXPORT_PART == "pinion")     pinion();
     else if (EXPORT_PART == "motor")      motor();
     else if (EXPORT_PART == "disc")       disc();
-    else if (EXPORT_PART == "seed_pool")  seed_pool();
     else if (EXPORT_PART == "afstrijker") afstrijker();
     else if (EXPORT_PART == "afstrijker2") afstrijker2();
     else if (EXPORT_PART == "geleider")   geleider();
@@ -276,7 +275,6 @@ if (EXPORT_MODE) {
     else {
         // "all" — combined STL with every Phase 1-3 + 6 part for inspection.
         disc();
-        seed_pool();
         afstrijker();
         afstrijker2();
         geleider();
@@ -288,7 +286,6 @@ if (EXPORT_MODE) {
 } else {
     cross_section_x(ENABLE_CROSS_SECTION) {
         petg_blue() disc();
-        petg_grey() seed_pool();
         color([0.55, 0.55, 0.60, 0.85]) afstrijker();
         color([0.55, 0.55, 0.60, 0.85]) afstrijker2();
         color([0.65, 0.70, 0.78, 0.40]) geleider();

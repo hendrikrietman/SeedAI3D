@@ -42,7 +42,9 @@
 include <lib/parameters.scad>;
 use     <lib/helpers.scad>;
 use     <v4_1_disc.scad>;
-use     <v5_2_seed_pool.scad>;
+// use <v5_2_seed_pool.scad> — archived in Phase 7. Geleider doesn't actually
+// reference any seed_pool module; the include was for combined-render
+// convenience.
 
 // ----- customizer flags -----
 ENABLE_CROSS_SECTION = false;
@@ -204,11 +206,10 @@ if (EXPORT_MODE) {
     else if (EXPORT_PART == "geleider")    geleider();
     else if (EXPORT_PART == "drop_tube")   drop_tube();
     else if (EXPORT_PART == "disc")        disc();
-    else if (EXPORT_PART == "seed_pool")   seed_pool();
+    // seed_pool archived in Phase 7
     else {
         // "all" → export everything as a single combined STL (for inspection)
         disc();
-        seed_pool();
         afstrijker();
         afstrijker2();
         geleider();
@@ -217,7 +218,6 @@ if (EXPORT_MODE) {
 } else {
     cross_section_x(ENABLE_CROSS_SECTION) {
         petg_blue() disc();
-        petg_grey() seed_pool();
         color([0.55, 0.55, 0.60, 0.85]) afstrijker();
         color([0.55, 0.55, 0.60, 0.85]) afstrijker2();
         color([0.65, 0.70, 0.78, 0.40]) geleider();

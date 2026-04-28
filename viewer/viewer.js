@@ -93,13 +93,16 @@ const AFSTRIJKER2_THETA =  95 * Math.PI / 180;
 const PICKUP_POS  = new THREE.Vector3(0, -29.698, -29.698);
 const RELEASE_POS = new THREE.Vector3(0,  29.698,  29.698);
 
-// Pool geometry — half-disc footprint (v5.5.2). R_OUTER=55 in plan view,
-// footprint y ≤ 0; floor lowered to z=-50 (v5.5.1) to clear tooth tips;
-// V-cone bottom centred at (0, -30, floor+2). Mirrors parameters.scad.
+// Pool geometry — Phase 7 hopper replaces the half-disc pool.
+// Hopper is a vertical funnel (axis along world -Z). Pool seeds spawn in
+// the narrow bottom (30×30) at world (X≈0, Y≈-46.67, Z≈-67..-47), where
+// the disc-rim at θ=270° (world (0, -46.67, -46.67)) dips into the pool
+// surface. Mirrors parameters.scad HOPPER_*.
 const POOL = {
-  rOuter: 55, wall: 2, depth: 33,
-  zTop: -17, zFloor: -50, yCenter: -30,
-  fillZ: -24,
+  bottomX: 30, bottomY: 30,
+  xCenter: 0, yCenter: -46.67,
+  zFloor: -67, zTop: -47,           // pool surface ≈ disc-rim level
+  fillZ: -49,                        // top of seed pile when full
 };
 
 // Phase 6 — disc-mal integrated plate. Pre-tilt frame (= disc-local).
@@ -151,11 +154,7 @@ const discMat = new THREE.MeshPhongMaterial({
   color: 0x6699d4, specular: 0x111111, shininess: 28,
   side: THREE.DoubleSide, clippingPlanes: [],
 });
-const poolMat = new THREE.MeshPhongMaterial({
-  color: 0x3c4248, specular: 0x111114, shininess: 22,
-  side: THREE.DoubleSide, transparent: true, opacity: 0.62,
-  clippingPlanes: [],
-});
+// poolMat removed in Phase 7 (seed_pool.stl archived; hopper takes over).
 const afstrijkerMat = new THREE.MeshPhongMaterial({
   color: 0x484c54, specular: 0x111114, shininess: 30,
   side: THREE.DoubleSide, transparent: true, opacity: 0.92,
@@ -184,6 +183,22 @@ const pinionMat = new THREE.MeshPhongMaterial({
 const motorMat = new THREE.MeshPhongMaterial({
   color: 0xa0a0a8, specular: 0x222226, shininess: 60,
   side: THREE.DoubleSide,
+  clippingPlanes: [],
+});
+// Phase 7 — transparent housing (industrial PETG-clear look).
+const hopperMat = new THREE.MeshPhongMaterial({
+  color: 0xb4b4c8, specular: 0x222226, shininess: 30,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.35,
+  clippingPlanes: [],
+});
+const lidMat = new THREE.MeshPhongMaterial({
+  color: 0xb4b4c8, specular: 0x222226, shininess: 30,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.30,
+  clippingPlanes: [],
+});
+const dustRingMat = new THREE.MeshPhongMaterial({
+  color: 0x8a1818, specular: 0x222226, shininess: 25,
+  side: THREE.DoubleSide, transparent: true, opacity: 0.85,
   clippingPlanes: [],
 });
 
@@ -254,6 +269,9 @@ let dropTubeMesh = null;
 let malPlateMesh = null;
 let pinionMesh = null;
 let motorMesh = null;
+let hopperMesh = null;
+let lidMesh = null;
+let dustRingMesh = null;
 const loader = new STLLoader();
 
 const STL_CACHE_BUST = `?v=${Date.now()}`;
@@ -271,7 +289,7 @@ function loadStl(path, mat, onMesh) {
 }
 
 loadStl('./models/disc.stl',       discMat,        (m) => { disc = m; });
-loadStl('./models/seed_pool.stl',  poolMat);
+// Phase 7: seed_pool archived → replaced by hopper. Loaded below.
 loadStl('./models/afstrijker.stl',  afstrijkerMat, (m) => {
   afstrijkerMesh  = m;
   m.updateMatrixWorld(true);
@@ -314,6 +332,9 @@ loadStl('./models/pinion.stl', pinionMat, (m) => {
   m.position.set(MAL.pinionCentreX, 0, 0);
 });
 loadStl('./models/motor.stl', motorMat, (m) => { motorMesh = m; });
+loadStl('./models/hopper.stl', hopperMat, (m) => { hopperMesh = m; });
+loadStl('./models/lid.stl', lidMat, (m) => { lidMesh = m; });
+loadStl('./models/dust_ring.stl', dustRingMat, (m) => { dustRingMesh = m; });
 
 // ============================================================================
 //  Pool fill — visible seed pile, with refill so the animation never starves
@@ -325,25 +346,20 @@ scene.add(poolGroup);
 const poolSeeds = [];
 
 function placePoolSeed(seed) {
-  // Half-disc pool footprint (v5.5.2): y ∈ [-R_OUTER+wall, -wall] curved by
-  // x² + y² ≤ (R_OUTER - wall)². Seeds must sit on the seed-side of the
-  // disc plane (eq > 0 post-flip): disc_plane_eq(0,y,z) = -sin45°·y +
-  // cos45°·z > 0 ⇔ z > y. With y < 0 this is satisfied for any reasonable
-  // z; the dominant constraint is staying below fillZ and inside the half-
-  // disc footprint. Seeds layer from floor upward.
-  const innerR = POOL.rOuter - POOL.wall - 2;
-  const yMin = -innerR;
-  const yMax = -POOL.wall - 2;
-  const layer = Math.floor(poolSeeds.length / 14);
+  // Phase 7 hopper pool: rectangular footprint at the funnel narrow
+  // bottom (30×30 mm), centred at (xCenter, yCenter). Seeds layer from
+  // pool floor upward to fillZ. World position only — lifecycle code
+  // unchanged: the pickup logic still picks the highest-Z seed from
+  // poolSeeds[].
+  const halfX = POOL.bottomX / 2 - 2;
+  const halfY = POOL.bottomY / 2 - 2;
+  const layer = Math.floor(poolSeeds.length / 8);
   const z_layer = POOL.zFloor + SEED_RADIUS
                 + layer * (SEED_RADIUS * 1.6)
-                + (Math.random() - 0.5) * 1.5;
+                + (Math.random() - 0.5) * 1.0;
   const z = Math.min(z_layer, POOL.fillZ);
-  const y = yMin + Math.random() * (yMax - yMin);
-  // x bounded by half-disc chord at this y.
-  const xMaxChord = Math.sqrt(Math.max(0, innerR * innerR - y * y)) - 2;
-  const xRange = Math.max(2, xMaxChord);
-  const x = (Math.random() - 0.5) * 2 * xRange;
+  const x = POOL.xCenter + (Math.random() - 0.5) * 2 * halfX;
+  const y = POOL.yCenter + (Math.random() - 0.5) * 2 * halfY;
   seed.position.set(x, y, z);
 }
 
@@ -820,6 +836,9 @@ const vacGlowInput     = document.getElementById('show-vacuum-glow');
 const malPlateInput    = document.getElementById('show-mal-plate');
 const pinionInput      = document.getElementById('show-pinion');
 const motorInput       = document.getElementById('show-motor');
+const hopperInput      = document.getElementById('show-hopper');
+const lidInput         = document.getElementById('show-lid');
+const dustRingInput    = document.getElementById('show-dust-ring');
 const cleanBtn         = document.getElementById('clean-cycle-btn');
 
 const angleEl    = document.getElementById('info-angle');
@@ -849,8 +868,9 @@ vacuumInput.addEventListener('input', () => {
 });
 csInput.addEventListener('change', () => {
   const planes = csInput.checked ? [clipPlane] : [];
-  for (const m of [discMat, poolMat, afstrijkerMat, geleiderMat, dropTubeMat,
-                   malPlateMat, pinionMat, motorMat]) {
+  for (const m of [discMat, afstrijkerMat, geleiderMat, dropTubeMat,
+                   malPlateMat, pinionMat, motorMat,
+                   hopperMat, lidMat, dustRingMat]) {
     m.clippingPlanes = planes;
     m.needsUpdate = true;
   }
@@ -884,6 +904,15 @@ pinionInput.addEventListener('change', () => {
 });
 motorInput.addEventListener('change', () => {
   if (motorMesh) motorMesh.visible = motorInput.checked;
+});
+hopperInput.addEventListener('change', () => {
+  if (hopperMesh) hopperMesh.visible = hopperInput.checked;
+});
+lidInput.addEventListener('change', () => {
+  if (lidMesh) lidMesh.visible = lidInput.checked;
+});
+dustRingInput.addEventListener('change', () => {
+  if (dustRingMesh) dustRingMesh.visible = dustRingInput.checked;
 });
 cleanBtn.addEventListener('click', () => {
   cleanCycleActive = !cleanCycleActive;

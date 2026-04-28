@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PROTISEM V5 — Phase 6 (integrated disc-mal element)</title>
+  <title>PROTISEM V5 — Phase 7 (transparent housing)</title>
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
     {
@@ -18,8 +18,8 @@
   <div id="canvas-host"></div>
 
   <section id="controls" class="panel">
-    <h1>PROTISEM V5 · Phase 6</h1>
-    <p class="sub">Integrated mal-plate + NEMA17 + 20T pinion + integrated chamber</p>
+    <h1>PROTISEM V5 · Phase 7</h1>
+    <p class="sub">Transparent housing: hopper + integrated tubes + protective lid</p>
 
     <div class="row">
       <label for="rpm">Disc RPM</label>
@@ -96,6 +96,24 @@
       <label class="toggle">
         <input id="show-motor" type="checkbox" checked />
         Motor (NEMA17 body)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-hopper" type="checkbox" checked />
+        Transparent hopper (housing)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-lid" type="checkbox" checked />
+        Protective lid
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-dust-ring" type="checkbox" checked />
+        Rubber dust-seal ring
       </label>
     </div>
     <div class="row">

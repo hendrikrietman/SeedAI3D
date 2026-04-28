@@ -816,3 +816,99 @@ centre_yz_near_axis, x_extent.
   section view, and chamber visual.
 
 **Tag**: v5.7.0.
+
+## V5.8.0 — Phase 7: integrated transparent housing (2026-04-28)
+
+Phase 7 spec from Hendrik. Replaces the half-disc seed pool with a
+proper funnel-shaped hopper, integrates the feeder + vac-cleanup tubes
+as channels through the housing wall (only short connector stubs
+protrude), and adds a transparent protective lid with a rubber dust-
+seal ring at the disc-OD radius.
+
+**Hopper geometry** (`scad/v5_7_housing.scad`, world coords, axis vertical):
+- Wide top 100 × 80 mm at world z=+33 (operator pours seeds in here)
+- Narrow bottom 30 × 30 mm at world z=-47 (just at disc-rim level so
+  the disc-rim at θ=270° dips into the pool surface)
+- Pool reservoir extends 20 mm down to z=-67 (closed floor)
+- Wall thickness 2 mm; built as `hull(top_box, bottom_box) ∪ pool_box`
+  with cavity inset by 2 mm on every face
+- Total height 100 mm (80 funnel + 20 pool)
+
+**Integrated tubes** (rendered as connector stubs with bore through wall):
+- Feeder: connector ID 14 mm, length 25 mm, 60° elevation, mounted on
+  hopper-front-face (y=-86.67) at x=+15
+- Vac-cleanup: connector ID 22 mm, length 30 mm, 80° elevation
+  (10° off vertical), mounted on hopper-top-face
+
+**Protective lid** (separate STL, tilted 45° with disc):
+- Ø 144 × 4 mm thick, sits 8 mm in front of disc-front face
+- Cutouts: pickup-zone window (40×25, θ=270° area), release-zone
+  window (40×25, θ=90° area, sized for geleider catch-mouth), central
+  hole Ø 54 for drop-tube
+- 4× M3 mounting inserts deferred to next iteration (visualisation
+  doesn't render the inserts)
+
+**Rubber dust-seal ring** (separate STL):
+- NBR-style ring, Ø 130 inner / Ø 144 outer × 3 mm thick
+- Sits on lid-bottom-face at z = +3 (disc-local pre-tilt)
+- Touches disc-OD-with-teeth (132) just inside ring inner Ø (130) →
+  light interference for sealing
+- Visible in viewer as dark red
+
+**Drive gear "proportions" — verified** (per spec). Pinion is module
+1.5 / 20T → OD ≈ 33 mm. Disc is spec'd at module 1.5 / 60T → pitch
+Ø 90, OD ≈ 132 (with addendum). Visual ratio of pinion (33) to disc
+tooth-tip-circle (132) is **1/4**. The "1/3" the spec mentions
+applies to pitch-to-pitch ratio (30/90), not visual OD-to-OD.
+Pinion is mathematically correct for the spec; what looked "small"
+in screenshots is just the pitch-vs-tip discrepancy. Left as-is per
+Hendrik's option (a). Documented in D11.
+
+**Mal-plate disc-recess overlap** (pre-existing from Phase 6, surfaced
+in Phase 7 conflict report). The mal-plate's Ø 134 disc-recess fully
+encloses the disc rim. Phase 5 pool and Phase 7 hopper both need
+disc-rim access at θ=270°. In the viewer the meshes just visually
+overlap (no boolean intersection enforced); physical hardware would
+need a θ=270° access cutout in the mal-plate. Left as a known issue
+per Hendrik's option (b).
+
+**Animation preservation.** Per the spec's emphatic warning: the seed
+lifecycle code (`holeState`, `holeIsAt`, `holeWorldPosition`, all
+`update*` functions, rotation calculations) was NOT touched. Only
+`POOL` constants and `placePoolSeed()` bounds were updated to spawn
+seeds in the new hopper-narrow-bottom geometry. Lifecycle anchors
+verified intact (35 references to lifecycle symbols, all unchanged).
+
+**File changes:**
+- `scad/v5_2_seed_pool.scad` → `scad/archive/`
+- `viewer/models/seed_pool.stl`, `stl/v5_2/seed_pool.stl` deleted
+- New: `scad/v5_7_housing.scad`, `stl/v5_7/{hopper,lid,dust_ring}.stl`,
+  `viewer/models/{hopper,lid,dust_ring}.stl`
+- `parameters.scad` gained HOPPER_*, FEEDER_CHANNEL_*, VAC_CHANNEL_*,
+  LID_*, DUST_RING_* params
+- `validation/geometry_check.py`: retired `check_seed_pool` /
+  `check_disc_floor_clearance`; added `check_hopper`, `check_lid`,
+  `check_dust_ring`
+- `viewer.js`: removed `poolMat` and `seed_pool.stl` load; added
+  `hopperMat`, `lidMat`, `dustRingMat` and the three STL loaders;
+  rewrote `placePoolSeed()` for the new 30×30 narrow bottom
+  footprint; added 3 toggles + button listeners
+- `viewer/index.html`: title bumped to "Phase 7"; added 3 toggles
+- `viewer/styles.css` unchanged
+
+**Validation**: 44/44 PASS. Hopper 782 v / 1568 f watertight; lid 272 v
+/ 552 f watertight; dust-ring 256 v / 512 f watertight.
+
+**Iso render**: `renders/v5_7/v5_7_iso.png`.
+
+**Open items / deferred:**
+- M3 mounting inserts in lid + plate not modelled.
+- Mal-plate θ=270° access cutout (visual overlap only, see D13).
+- Real housing-wall cast tube channels (current model has stub
+  connectors; the "channel through the wall" is implicit).
+- Feeder channel and vac-cleanup channel don't actually carve through
+  the hopper wall as fluid paths — they're separate cylinders that
+  bore through. For visualisation that's fine; for printing that
+  would need a single `union` with proper wall thickness throughout.
+
+**Tag**: v5.8.0. Backup tag: `phase6-pre-housing-backup` at v5.7.0.
