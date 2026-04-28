@@ -1,25 +1,42 @@
-# PROTISEM V4 — Slanted Vacuum Seed Disc
+# SeedAI3D
 
-Parametric CAD project for a 45° slanted vacuum seeding disc. Built in 10 sequential phases, each producing OpenSCAD source, STL exports, PNG cross-sections, and a working three.js HTML viewer.
+> AI-augmented, 3D-printable, breeder-first vacuum precision sowing element.
 
-See `CLAUDE.md` for full project memory and the per-phase plan.
+## What is this
 
-## Quick start
+A precision sowing element designed for plant breeders, not for industrial agriculture. Open-source, parametric, 3D-printable.
 
-```bash
-# Render all current SCAD files to STL + PNG
-bash scripts/render_all.sh
+Commercial precision seeders (Monosem, MaterMacc, Stanhay) cost €5,000-25,000 and are built for thousand-hectare farming. They don't serve the plant breeding community well: small plots, frequent line changes, zero contamination tolerance, need for line-tracking.
 
-# Open the viewer
-xdg-open viewer/index.html   # or: python -m http.server -d viewer 8000
-```
+SeedAI3D fills that gap. Estimated cost per element: €50-150 (printed parts + electronics + small parts).
 
-## Layout
+## Distinguishing features
 
-- `scad/` — OpenSCAD source, with shared `lib/parameters.scad` and `lib/helpers.scad`
-- `stl/v4_<phase>/` — STL exports per phase
-- `renders/v4_<phase>/` — PNG cross-sections + orthographic views per phase
-- `viewer/` — three.js browser viewer (the live deliverable)
-- `validation/` — Python checks: watertightness, clearances, seed paths
-- `docs/` — BOM, build log, architectural decisions
-- `scripts/` — render/export/update helpers
+- **Vacuum pickup from seed-pool** — Earthway/MaterMacc-style
+- **Zero-loss recovery bowl** surrounding disc seed-path — fallen seeds return to pool
+- **Dual-tube self-cleaning** between lines (feeder + vacuum-cleaner-port)
+- **Parametric design** adaptable to soybean, edamame, lima, snapbean
+- **Optional RTK GPS integration** for plot-tracking and adaptive sowing speed
+
+## Status
+
+Prototype design phase. CAD architecture complete. First 3D-print pending.
+
+This repository contains:
+- Parametric OpenSCAD designs
+- Three.js interactive viewer (real-time animated cycle visualization)
+- Build documentation
+- Design rationale and architecture decisions
+
+## Architecture phases
+
+- **Phase 1:** 132mm tilted disc with 60 teeth, 40 pickup-holes (Ø4mm)
+- **Phase 2:** Bottom seed-pool architecture
+- **Phase 3:** Singulator deflectors + guide funnel + 6-state seed lifecycle
+- **Phase 4:** Vacuum chamber with O-ring sealing
+- **Phase 6:** Integrated mal-plate (motor + drive + chamber in one)
+- **Phase 7:** Transparent housing with integrated tubes (in progress)
+
+## License
+
+CC-BY-SA 4.0 — share-alike, attribution required.
