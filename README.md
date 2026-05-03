@@ -2,6 +2,16 @@
 
 > AI-augmented, 3D-printable, breeder-first vacuum precision sowing element.
 
+## Live demo
+
+**Interactive viewer:** [http://178.104.15.205:8900/](http://178.104.15.205:8900/)
+
+Real-time animated seed-cycle visualisation of the current design. The page
+streams from a `python3 -m http.server` instance on the project's Hetzner
+build box, served by a `systemd` unit so it stays up between reboots. No
+account, no install — just open the link. Hard-reload on first visit
+(Ctrl/Cmd-Shift-R) so the cache-busted JS picks up the latest geometry.
+
 ## What is this
 
 A precision sowing element designed for plant breeders, not for industrial agriculture. Open-source, parametric, 3D-printable.
