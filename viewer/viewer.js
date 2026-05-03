@@ -933,6 +933,7 @@ const afstrijker2Input = document.getElementById('show-afstrijker2');
 const geleiderInput    = document.getElementById('show-geleider');
 const dropTubeInput    = document.getElementById('show-drop-tube');
 const vacGlowInput     = document.getElementById('show-vacuum-glow');
+const discInput        = document.getElementById('show-disc');
 const malPlateInput    = document.getElementById('show-mal-plate');
 const pinionInput      = document.getElementById('show-pinion');
 const motorInput       = document.getElementById('show-motor');
@@ -996,6 +997,9 @@ dropTubeInput.addEventListener('change', () => {
 });
 vacGlowInput.addEventListener('change', () => {
   holeGlowGroup.visible = vacGlowInput.checked;
+});
+discInput.addEventListener('change', () => {
+  if (disc) disc.visible = discInput.checked;
 });
 malPlateInput.addEventListener('change', () => {
   if (malPlateMesh) malPlateMesh.visible = malPlateInput.checked;
