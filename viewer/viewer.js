@@ -269,6 +269,57 @@ const holeGlowMeshes = [];
 }
 
 // ============================================================================
+//  Vacuum O-ring seal (procedural — no STL).
+//  Mirrors the groove geometry cut into the mal-plate at scad/v5_6_disc_mal.scad
+//  (ORING_OUTER_R=53, ORING_INNER_R=31, CORD_DIA=2.5, on plane Z_local=-2.5
+//  in the pre-tilt frame). Rendered as Ø2.5 NBR cord following the chamber
+//  sector perimeter: outer half-arc + inner half-arc + two radial straights
+//  at θ=90° and θ=270°. Default hidden — engineers want to see the groove
+//  before the cord obscures it.
+// ============================================================================
+const oringGroup = new THREE.Group();
+{
+  const ORING_OUTER_R = 53;
+  const ORING_INNER_R = 31;
+  const CORD_R        = 1.25;       // 2.5 mm OD cord
+  const Z_RECESS_BK   = -2.5;       // disc-local plane the groove sits on
+  const oringMat = new THREE.MeshPhongMaterial({
+    color: 0x1a1a1a, shininess: 12, specular: 0x222222,
+  });
+  // Outer half-torus: TorusGeometry default arc starts at +X going CCW; we
+  // want the arc to span +Y → -X → -Y (chamber sector covers world-x ≤ 0),
+  // so rotate the mesh by +π/2 around Z.
+  const outerArc = new THREE.Mesh(
+    new THREE.TorusGeometry(ORING_OUTER_R, CORD_R, 8, 96, Math.PI),
+    oringMat,
+  );
+  outerArc.rotation.z = Math.PI / 2;
+  outerArc.position.z = Z_RECESS_BK;
+  oringGroup.add(outerArc);
+  const innerArc = new THREE.Mesh(
+    new THREE.TorusGeometry(ORING_INNER_R, CORD_R, 8, 96, Math.PI),
+    oringMat,
+  );
+  innerArc.rotation.z = Math.PI / 2;
+  innerArc.position.z = Z_RECESS_BK;
+  oringGroup.add(innerArc);
+  // Two radial end straights closing the racetrack at θ=90° and θ=270°.
+  // CylinderGeometry's default axis is Y, so no rotation needed.
+  const straightLen = ORING_OUTER_R - ORING_INNER_R;             // 22 mm
+  const straightMid = (ORING_OUTER_R + ORING_INNER_R) / 2;       // 42 mm
+  const straightGeom = new THREE.CylinderGeometry(CORD_R, CORD_R, straightLen, 16);
+  const top    = new THREE.Mesh(straightGeom, oringMat);
+  top.position.set(0, +straightMid, Z_RECESS_BK);
+  oringGroup.add(top);
+  const bottom = new THREE.Mesh(straightGeom, oringMat);
+  bottom.position.set(0, -straightMid, Z_RECESS_BK);
+  oringGroup.add(bottom);
+}
+oringGroup.rotation.x = TILT;       // tilt 45° around X to match disc / mal-plate world frame
+oringGroup.visible = false;         // default off
+scene.add(oringGroup);
+
+// ============================================================================
 //  STL load — disc, pool, afstrijker, geleider, drop_tube
 // ============================================================================
 let disc = null;
@@ -935,6 +986,8 @@ const dropTubeInput    = document.getElementById('show-drop-tube');
 const vacGlowInput     = document.getElementById('show-vacuum-glow');
 const discInput        = document.getElementById('show-disc');
 const malPlateInput    = document.getElementById('show-mal-plate');
+const oringInput       = document.getElementById('show-oring');
+const gridInput        = document.getElementById('show-grid');
 const pinionInput      = document.getElementById('show-pinion');
 const motorInput       = document.getElementById('show-motor');
 const hopperInput      = document.getElementById('show-hopper');
@@ -1003,6 +1056,12 @@ discInput.addEventListener('change', () => {
 });
 malPlateInput.addEventListener('change', () => {
   if (malPlateMesh) malPlateMesh.visible = malPlateInput.checked;
+});
+oringInput.addEventListener('change', () => {
+  oringGroup.visible = oringInput.checked;
+});
+gridInput.addEventListener('change', () => {
+  grid.visible = gridInput.checked;
 });
 pinionInput.addEventListener('change', () => {
   if (pinionMesh) pinionMesh.visible = pinionInput.checked;
