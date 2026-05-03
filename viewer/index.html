@@ -170,6 +170,9 @@
     </p>
   </section>
 
-  <script type="module" src="viewer.js"></script>
+  <!-- Cache-bust the JS load on every page open. Mirrors the ?v=Date.now()
+       pattern viewer.js already uses for STL loads — without this, browsers
+       happily reuse stale viewer.js and UI changes never reach the user. -->
+  <script type="module">import('./viewer.js?v=' + Date.now());</script>
 </body>
 </html>
