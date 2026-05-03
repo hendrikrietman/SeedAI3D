@@ -168,9 +168,77 @@ module lid_solid() {
 // closed ring covers the disc teeth without blocking any working
 // element.
 
+// =====================================================================
+//  Lid seed deflector ribs (D14 follow-up).
+//
+//  Two ribs project inward from the lid's inner edge (R=56) toward the
+//  central drop hole, acting as physical barriers + directors for seeds
+//  that didn't release cleanly at θ=90°. The ribs are NOT printed as
+//  separate parts — they're fused with the lid in a single STL.
+//
+//  Right rib (main, +X half): angled blade from (R=56, θ=70°) sweeping
+//  inward to (R=22, θ=80°). Inner end sits INSIDE the central hole
+//  footprint (R<25), so seeds reaching the inner end fall through the
+//  drop tube. Tall — uses the full 1.5 mm gap from disc-front-+0.5 to
+//  lid-back. Sector is post-release / no-vacuum, so no conflict with
+//  vacuum-attached seeds.
+//
+//  Left rail (low, -X half): straight radial blade at θ=135° from
+//  R=46 (just outside the pickup circle R=42) to R=56 (lid inner edge).
+//  Sits 0.5 mm above the 6 mm-protruding vacuum-attached seeds (so
+//  Z ∈ [+8.5, +10] disc-local) — does NOT touch the seeds. Backup
+//  containment, not a primary deflector.
+// =====================================================================
+LID_RIGHT_RIB_R_OUT       = 56;     // lid inner edge
+LID_RIGHT_RIB_R_IN        = 22;     // inside central hole (R<25)
+LID_RIGHT_RIB_THETA_OUT   = 70;     // post-release in +X half
+LID_RIGHT_RIB_THETA_IN    = 80;     // angled toward release
+LID_RIGHT_RIB_Z_LO        = DISC_THICKNESS / 2 + 0.5;   // +2.5
+LID_RIGHT_RIB_Z_HI        = LID_BACK_Z;                  // +4
+LID_RIGHT_RIB_R_PROF      = 0.75;   // cross-section "radius" of hull caps
+
+LID_LEFT_RAIL_R_OUT       = 56;
+LID_LEFT_RAIL_R_IN        = 46;     // outside pickup circle R=42 with margin
+LID_LEFT_RAIL_THETA       = 135;    // mid -X half, in vacuum sector
+LID_LEFT_RAIL_Z_LO        = (DISC_THICKNESS / 2) + 6 + 0.5;  // +8.5: 0.5 mm above seed top at +8
+LID_LEFT_RAIL_Z_HI        = LID_FRONT_Z;                      // +10
+LID_LEFT_RAIL_R_PROF      = 0.5;
+
+module lid_right_deflector() {
+    p_out_x = LID_RIGHT_RIB_R_OUT * cos(LID_RIGHT_RIB_THETA_OUT);
+    p_out_y = LID_RIGHT_RIB_R_OUT * sin(LID_RIGHT_RIB_THETA_OUT);
+    p_in_x  = LID_RIGHT_RIB_R_IN  * cos(LID_RIGHT_RIB_THETA_IN);
+    p_in_y  = LID_RIGHT_RIB_R_IN  * sin(LID_RIGHT_RIB_THETA_IN);
+    h = LID_RIGHT_RIB_Z_HI - LID_RIGHT_RIB_Z_LO + EPS;
+    hull() {
+        translate([p_out_x, p_out_y, LID_RIGHT_RIB_Z_LO])
+            cylinder(r = LID_RIGHT_RIB_R_PROF, h = h);
+        translate([p_in_x, p_in_y, LID_RIGHT_RIB_Z_LO])
+            cylinder(r = LID_RIGHT_RIB_R_PROF, h = h);
+    }
+}
+
+module lid_left_guide_rail() {
+    p_out_x = LID_LEFT_RAIL_R_OUT * cos(LID_LEFT_RAIL_THETA);
+    p_out_y = LID_LEFT_RAIL_R_OUT * sin(LID_LEFT_RAIL_THETA);
+    p_in_x  = LID_LEFT_RAIL_R_IN  * cos(LID_LEFT_RAIL_THETA);
+    p_in_y  = LID_LEFT_RAIL_R_IN  * sin(LID_LEFT_RAIL_THETA);
+    h = LID_LEFT_RAIL_Z_HI - LID_LEFT_RAIL_Z_LO + EPS;
+    hull() {
+        translate([p_out_x, p_out_y, LID_LEFT_RAIL_Z_LO])
+            cylinder(r = LID_LEFT_RAIL_R_PROF, h = h);
+        translate([p_in_x, p_in_y, LID_LEFT_RAIL_Z_LO])
+            cylinder(r = LID_LEFT_RAIL_R_PROF, h = h);
+    }
+}
+
 module lid() {
     rotate([DISC_TILT_DEG, 0, 0])
-        lid_solid();
+        union() {
+            lid_solid();
+            lid_right_deflector();
+            lid_left_guide_rail();
+        }
 }
 
 module dust_ring_solid() {
