@@ -351,12 +351,88 @@ MAL_MOTOR_CUTOUT_Y     = 36;    // tangential extent (along disc-local Y)
 MAL_MOTOR_CUTOUT_X_CTR = PINION_CENTRE_X;   // -75
 MAL_MOTOR_CUTOUT_Y_CTR = 0;
 
-// --- Hose nipple, on plate-back at chamber midpoint (θ=180°, R=42) ---
+// ==========================================================================
+// DUAL-SECTOR CHAMBER + AIR-FLOW REGULATION  (D14, dual-sector-blow-chamber)
+// ==========================================================================
+// The single 180° vacuum sector is split into two pressure zones:
+//   - Vacuum sub-sector:  θ ∈ [110°, 270°] (160°) — pickup, hold, transport
+//   - Blow    sub-sector: θ ∈ [ 90°, 110°] ( 20°) — active push at release
+// A thin radial partition wall at θ=110° (between R_IN and R_OUT) isolates
+// the two zones. Its top protrudes past the chamber-front-wall to leave
+// a small (~0.1 mm) clearance against the disc-back, providing a light
+// face seal between sub-sectors.
+//
+// Each sub-sector has its own hose nipple AND a small passive bleed orifice
+// (drilled from chamber back-wall to atmosphere). The bleed acts as a
+// hard cap on the absolute pressure: even with the source wide open,
+// the pressure can't exceed the bleed's flow limit. This prevents the
+// disc from being face-loaded against the seal at high vacuum (which
+// would cause drag and seal wear) and prevents over-blowing seeds at
+// high blow.
+//
+// Operator regulation: a manual needle valve on each hose line (BOM
+// addition, not part of the printed assembly) lets the operator dial
+// the source pressure for the seed type. Soybean window: vacuum ≈
+// −3 to −8 kPa, blow ≈ +0.5 to +2 kPa.
+SECTOR_BLOW_THETA_START   = 90;      // release boundary
+SECTOR_BLOW_THETA_END     = 110;     // partition wall angle
+SECTOR_VACUUM_THETA_START = 110;     // partition wall angle
+SECTOR_VACUUM_THETA_END   = 270;     // pickup boundary
+PARTITION_THETA           = 110;     // partition wall angular position
+PARTITION_WALL_T          = 1.5;     // tangential thickness (mm)
+PARTITION_WALL_OVERSIZE   = 0.4;     // mm partition top protrudes past chamber-front-wall;
+                                     // 0.4 leaves 0.1 mm gap to disc-back (= MAL_BACK_CLEARANCE 0.5 - 0.4)
+
+// --- Vacuum nipple (was the only nipple before D14) --------------------------
+// New position: midangle of vacuum sub-sector (190°), not chamber midangle (180°).
+// Keeps the nipple inside the vacuum cavity rather than at the partition wall.
 MAL_NIPPLE_OD          = 12;
 MAL_NIPPLE_ID          = 8;
 MAL_NIPPLE_LENGTH      = 30;
-MAL_NIPPLE_X           = -(MAL_CHAMBER_R_IN + MAL_CHAMBER_R_OUT) / 2;  // -42
+MAL_NIPPLE_R           = (MAL_CHAMBER_R_IN + MAL_CHAMBER_R_OUT) / 2;  // 42
+// Vacuum nipple kept at θ=180° (chamber midangle) rather than vacuum
+// sub-sector midangle (190°). Both are inside the vacuum sub-sector
+// [110°,270°], but the (-42,0) position avoids a CGAL non-manifold edge
+// that appears when the bore axis isn't aligned with the chamber's
+// symmetry axis. Documented in D14.
+MAL_NIPPLE_THETA       = 180;
+MAL_NIPPLE_X           = -42;
 MAL_NIPPLE_Y           = 0;
+
+// --- Blow nipple (new, D14) --------------------------------------------------
+// Smaller than vacuum: blow only needs to push light seed off the disc, not
+// move bulk air. Ø10 OD / Ø6 ID, 25 mm long.
+//
+// Important: nipple/bore THETA values must be multiples of (360/$fn) =
+// 5.625° so the cylinder facets align with the surrounding chamber-cylinder
+// facets — otherwise the boolean produces 6+ tiny non-manifold edges that
+// trip trimesh's watertight check (CGAL itself reports "Simple: yes" but
+// validation still fails). Closest vertex-aligned angle to blow midangle
+// 100°: 18 × 5.625° = 101.25° (1.25° offset, geometrically negligible).
+BLOW_NIPPLE_OD         = 10;
+BLOW_NIPPLE_ID         = 6;
+BLOW_NIPPLE_LENGTH     = 25;
+BLOW_NIPPLE_R          = (MAL_CHAMBER_R_IN + MAL_CHAMBER_R_OUT) / 2;  // 42
+BLOW_NIPPLE_THETA      = 101.25;
+BLOW_NIPPLE_X          = BLOW_NIPPLE_R * cos(BLOW_NIPPLE_THETA);
+BLOW_NIPPLE_Y          = BLOW_NIPPLE_R * sin(BLOW_NIPPLE_THETA);
+
+// --- Passive bleed orifices (max-pressure clamps, D14) -----------------------
+// Drilled straight through plate-back wall, opening to chamber back-wall and
+// to atmosphere. Vacuum-side bleed sized for soybean ceiling at ~-8 kPa with
+// a typical 30 L/min shop-vac; blow-side smaller because the source is
+// gentler and we want a tight cap on positive pressure to avoid seed launch.
+// THETA values vertex-aligned to multiples of 5.625° (see note above).
+VAC_BLEED_DIA          = 1.5;
+BLOW_BLEED_DIA         = 1.0;
+VAC_BLEED_R            = MAL_NIPPLE_R;
+BLOW_BLEED_R           = BLOW_NIPPLE_R;
+VAC_BLEED_THETA        = 225;       // 40 × 5.625° — 45° offset from vacuum nipple at 180°
+BLOW_BLEED_THETA       = 95.625;    // 17 × 5.625° — close to release boundary at 90°
+VAC_BLEED_X            = VAC_BLEED_R  * cos(VAC_BLEED_THETA);
+VAC_BLEED_Y            = VAC_BLEED_R  * sin(VAC_BLEED_THETA);
+BLOW_BLEED_X           = BLOW_BLEED_R * cos(BLOW_BLEED_THETA);
+BLOW_BLEED_Y           = BLOW_BLEED_R * sin(BLOW_BLEED_THETA);
 
 // ==========================================================================
 // HOUSING (used in later phases, declared here for reference)

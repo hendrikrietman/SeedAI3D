@@ -269,104 +269,193 @@ const holeGlowMeshes = [];
 }
 
 // ============================================================================
-//  Vacuum O-ring seal (procedural — no STL).
-//  Mirrors the groove geometry cut into the mal-plate at scad/v5_6_disc_mal.scad
-//  (ORING_OUTER_R=53, ORING_INNER_R=31, CORD_DIA=2.5, GROOVE_W=3.2, GROOVE_D=1.9
-//  on plane Z_local=-2.5 in the pre-tilt frame). Rendered as:
-//    - the Ø2.5 NBR cord nestled in the groove (top tangent to disc-back face,
-//      bottom near groove floor — "compressed-installed" state)
-//    - thin grey "slot wall" outlines bordering the cord path, so the
-//      U-channel that holds the ring is visually obvious without relying
-//      on the STL's tiny 1.9 mm step-height (which gets lost on a 152 mm
-//      plate at typical viewing zoom).
-//  Default hidden — engineers want to see the groove before the cord
-//  obscures it.
+//  Vacuum O-ring seals (procedural — no STL).
+//  D14 dual-sector: TWO independent racetrack loops, one per sub-sector,
+//  with the partition wall handling sealing between them. Each loop:
+//  outer arc R=53 + inner arc R=31 + 2 radial end-cap cords closing the
+//  racetrack at the sector boundaries. Geometry mirrors the groove cuts
+//  in scad/v5_6_disc_mal.scad's oring_groove_for_sector.
 // ============================================================================
+const ORING_OUTER_R     = 53;
+const ORING_INNER_R     = 31;
+const ORING_CORD_R      = 1.25;
+const ORING_GROOVE_HALF_W = 1.6;
+const ORING_Z_PLATE_FACE  = -2.5;
+const ORING_Z_GROOVE_FLR  = -4.4;
+const ORING_Z_CORD_CENTER = -3.25;
+const ORING_Z_WALL_MID    = (ORING_Z_PLATE_FACE + ORING_Z_GROOVE_FLR) / 2;
+const ORING_WALL_HEIGHT   = ORING_Z_PLATE_FACE - ORING_Z_GROOVE_FLR;
+const ORING_WALL_T        = 0.4;
+const VACUUM_THETA_START_DEG = 110;       // matches SCAD SECTOR_VACUUM_THETA_START
+const VACUUM_THETA_END_DEG   = 270;
+const BLOW_THETA_START_DEG   = 90;
+const BLOW_THETA_END_DEG     = 110;
+
 const oringGroup = new THREE.Group();
 {
-  const ORING_OUTER_R     = 53;
-  const ORING_INNER_R     = 31;
-  const CORD_R            = 1.25;     // 2.5 mm OD cord
-  const GROOVE_HALF_W     = 1.6;      // 3.2 mm groove width / 2
-  const Z_PLATE_FACE      = -2.5;     // disc-local recess back wall (groove top)
-  const Z_GROOVE_FLOOR    = -4.4;     // Z_PLATE_FACE - GROOVE_DEPTH (1.9)
-  const Z_CORD_CENTER     = -3.25;    // mid-compression: cord top ≈ disc back at -2.0
-  const Z_WALL_TOP        = Z_PLATE_FACE;
-  const Z_WALL_BOTTOM     = Z_GROOVE_FLOOR;
-  const WALL_HEIGHT       = Z_WALL_TOP - Z_WALL_BOTTOM;  // 1.9
-  const WALL_HALF_HEIGHT  = WALL_HEIGHT / 2;
-  const Z_WALL_MID        = (Z_WALL_TOP + Z_WALL_BOTTOM) / 2;  // -3.45
   const cordMat = new THREE.MeshPhongMaterial({
     color: 0x1a1a1a, shininess: 12, specular: 0x222222,
   });
   const wallMat = new THREE.MeshPhongMaterial({
-    color: 0x6e6e6e, shininess: 4,    // light grey — reads as machined slot wall
+    color: 0x6e6e6e, shininess: 4,
   });
-  // ----- Cord (4-piece racetrack: outer arc + inner arc + 2 end straights) -----
-  // TorusGeometry default arc starts at +X going CCW; we want the arc to span
-  // +Y → -X → -Y (chamber sector covers world-x ≤ 0), so each torus mesh is
-  // rotated by +π/2 around Z to put its starting point at +Y.
-  const arc = (R, z) => {
-    const m = new THREE.Mesh(
-      new THREE.TorusGeometry(R, CORD_R, 8, 96, Math.PI), cordMat,
-    );
-    m.rotation.z = Math.PI / 2;
-    m.position.z = z;
-    return m;
-  };
-  oringGroup.add(arc(ORING_OUTER_R, Z_CORD_CENTER));
-  oringGroup.add(arc(ORING_INNER_R, Z_CORD_CENTER));
-  // Two radial end straights closing the racetrack at θ=90° and θ=270°.
-  // CylinderGeometry's default axis is Y, so no rotation needed.
-  const straightLen = ORING_OUTER_R - ORING_INNER_R;             // 22 mm
-  const straightMid = (ORING_OUTER_R + ORING_INNER_R) / 2;       // 42 mm
-  const straightGeom = new THREE.CylinderGeometry(CORD_R, CORD_R, straightLen, 16);
-  for (const sign of [+1, -1]) {
-    const m = new THREE.Mesh(straightGeom, cordMat);
-    m.position.set(0, sign * straightMid, Z_CORD_CENTER);
-    oringGroup.add(m);
-  }
-  // ----- Slot walls (visualizes the groove cut in the STL — full 1.9 mm tall,
-  // contrasting colour, sandwiches the cord on both inner and outer sides
-  // of every arc and end straight). Wall thickness 0.4 mm is exaggerated for
-  // visibility; actual STL cut has zero-thickness walls (they're just the
-  // sides of the rectangular groove).
-  const WALL_T = 0.4;
-  const wallArc = (R, z) => {
-    const m = new THREE.Mesh(
-      new THREE.TorusGeometry(R, WALL_T / 2, 4, 96, Math.PI), wallMat,
-    );
-    m.rotation.z = Math.PI / 2;
-    m.position.z = z;
-    m.scale.z = WALL_HEIGHT / WALL_T;   // stretch the tube cross-section vertically into a wall
-                                        // (Z is axial — perpendicular to major circle, so only
-                                        //  the tube's axial extent is stretched; major circle stays round)
-    return m;
-  };
-  // Outer-groove walls at R = 53 ± 1.6
-  oringGroup.add(wallArc(ORING_OUTER_R - GROOVE_HALF_W, Z_WALL_MID));
-  oringGroup.add(wallArc(ORING_OUTER_R + GROOVE_HALF_W, Z_WALL_MID));
-  // Inner-groove walls at R = 31 ± 1.6
-  oringGroup.add(wallArc(ORING_INNER_R - GROOVE_HALF_W, Z_WALL_MID));
-  oringGroup.add(wallArc(ORING_INNER_R + GROOVE_HALF_W, Z_WALL_MID));
-  // End-straight walls — thin BoxGeometry slabs along Y, at the radial ends.
-  const endStraightLen = (ORING_OUTER_R - ORING_INNER_R) + 2 * GROOVE_HALF_W;
-  const endWallGeom = new THREE.BoxGeometry(endStraightLen, WALL_T, WALL_HEIGHT);
-  for (const ySign of [+1, -1]) {
-    for (const wSign of [-1, +1]) {
-      const m = new THREE.Mesh(endWallGeom, wallMat);
-      m.position.set(
-        -(ORING_OUTER_R + ORING_INNER_R) / 2,                              // X centre at -42
-        ySign * (straightMid + wSign * GROOVE_HALF_W),                     // each side of the end straight
-        Z_WALL_MID,
+  // Add one closed-loop racetrack at the given sub-sector.
+  const addLoop = (theta_start_deg, theta_end_deg) => {
+    const theta_start = theta_start_deg * Math.PI / 180;
+    const arc_rad     = (theta_end_deg - theta_start_deg) * Math.PI / 180;
+    const arc_segs    = Math.max(16, Math.ceil((theta_end_deg - theta_start_deg) / 2));
+    // Cord arcs: TorusGeometry's arc starts at local +X. Rotate by
+    // theta_start around Z to align the start with the desired angle.
+    const cordArc = (R, z) => {
+      const m = new THREE.Mesh(
+        new THREE.TorusGeometry(R, ORING_CORD_R, 8, arc_segs, arc_rad), cordMat,
       );
+      m.rotation.z = theta_start;
+      m.position.z = z;
+      return m;
+    };
+    oringGroup.add(cordArc(ORING_OUTER_R, ORING_Z_CORD_CENTER));
+    oringGroup.add(cordArc(ORING_INNER_R, ORING_Z_CORD_CENTER));
+    // End-straight cords: each is a radial segment at theta_start and
+    // theta_end, going from R=ORING_INNER to R=ORING_OUTER. Cylinder along
+    // disc-local Y by default; rotated by (theta - 90°) so its axis aligns
+    // with the radial direction at that angle.
+    const straightLen = ORING_OUTER_R - ORING_INNER_R;
+    const straightMid = (ORING_OUTER_R + ORING_INNER_R) / 2;
+    const straightGeom = new THREE.CylinderGeometry(
+      ORING_CORD_R, ORING_CORD_R, straightLen, 16
+    );
+    for (const theta_deg of [theta_start_deg, theta_end_deg]) {
+      const theta = theta_deg * Math.PI / 180;
+      const m = new THREE.Mesh(straightGeom, cordMat);
+      m.position.set(
+        Math.cos(theta) * straightMid,
+        Math.sin(theta) * straightMid,
+        ORING_Z_CORD_CENTER,
+      );
+      m.rotation.z = theta - Math.PI / 2;   // align cylinder Y-axis with radial direction at θ
       oringGroup.add(m);
     }
-  }
+    // Slot-wall outlines (light grey, exaggerated thickness for visibility).
+    const wallArcMesh = (R, z) => {
+      const m = new THREE.Mesh(
+        new THREE.TorusGeometry(R, ORING_WALL_T / 2, 4, arc_segs, arc_rad),
+        wallMat,
+      );
+      m.rotation.z = theta_start;
+      m.position.z = z;
+      m.scale.z = ORING_WALL_HEIGHT / ORING_WALL_T;
+      return m;
+    };
+    oringGroup.add(wallArcMesh(ORING_OUTER_R - ORING_GROOVE_HALF_W, ORING_Z_WALL_MID));
+    oringGroup.add(wallArcMesh(ORING_OUTER_R + ORING_GROOVE_HALF_W, ORING_Z_WALL_MID));
+    oringGroup.add(wallArcMesh(ORING_INNER_R - ORING_GROOVE_HALF_W, ORING_Z_WALL_MID));
+    oringGroup.add(wallArcMesh(ORING_INNER_R + ORING_GROOVE_HALF_W, ORING_Z_WALL_MID));
+    // End-cap walls: thin BoxGeometry slabs at theta_start and theta_end.
+    const endStraightLen = (ORING_OUTER_R - ORING_INNER_R) + 2 * ORING_GROOVE_HALF_W;
+    const endWallGeom = new THREE.BoxGeometry(
+      endStraightLen, ORING_WALL_T, ORING_WALL_HEIGHT
+    );
+    for (const theta_deg of [theta_start_deg, theta_end_deg]) {
+      const theta = theta_deg * Math.PI / 180;
+      const dx = Math.cos(theta) * straightMid;
+      const dy = Math.sin(theta) * straightMid;
+      // Two walls bordering the end-cap (one inner, one outer along the
+      // tangential direction). Tangent = perpendicular to radial = (-sin, cos).
+      const tx = -Math.sin(theta), ty = Math.cos(theta);
+      for (const wSign of [-1, +1]) {
+        const m = new THREE.Mesh(endWallGeom, wallMat);
+        m.position.set(
+          dx + wSign * tx * ORING_GROOVE_HALF_W,
+          dy + wSign * ty * ORING_GROOVE_HALF_W,
+          ORING_Z_WALL_MID,
+        );
+        m.rotation.z = theta - Math.PI / 2;
+        oringGroup.add(m);
+      }
+    }
+  };
+  // Two loops: vacuum sub-sector + blow sub-sector.
+  addLoop(VACUUM_THETA_START_DEG, VACUUM_THETA_END_DEG);
+  addLoop(BLOW_THETA_START_DEG, BLOW_THETA_END_DEG);
 }
-oringGroup.rotation.x = TILT;       // tilt 45° around X to match disc / mal-plate world frame
-oringGroup.visible = false;         // default off
+oringGroup.rotation.x = TILT;
+oringGroup.visible = false;
 scene.add(oringGroup);
+
+// ============================================================================
+//  Partition wall (D14 — sector A / sector B divider).
+//  Procedural: a thin slab at θ=110° in disc-local, between R_IN and R_OUT,
+//  full chamber depth, top sticks up 0.4 mm above plate face. Mirrors
+//  scad/v5_6_disc_mal.scad's mal_partition_wall.
+// ============================================================================
+const partitionGroup = new THREE.Group();
+{
+  const PARTITION_THETA_DEG = 110;
+  const PARTITION_T         = 1.5;
+  const PARTITION_OVERSIZE  = 0.4;
+  const CHAMBER_R_IN        = 32;
+  const CHAMBER_R_OUT       = 52;
+  const CHAMBER_DEPTH       = 8;
+  const Z_CHAMBER_BK        = -10.5;
+  const partitionMat = new THREE.MeshPhongMaterial({
+    color: 0x444444, shininess: 8, specular: 0x222222,
+  });
+  const slab = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      CHAMBER_R_OUT - CHAMBER_R_IN + 1,
+      PARTITION_T,
+      CHAMBER_DEPTH + PARTITION_OVERSIZE,
+    ),
+    partitionMat,
+  );
+  // Centre the slab radially at midpoint, vertically at chamber-mid.
+  const theta = PARTITION_THETA_DEG * Math.PI / 180;
+  const r_mid = (CHAMBER_R_IN + CHAMBER_R_OUT) / 2;
+  const z_mid = Z_CHAMBER_BK + (CHAMBER_DEPTH + PARTITION_OVERSIZE) / 2;
+  slab.position.set(
+    Math.cos(theta) * r_mid,
+    Math.sin(theta) * r_mid,
+    z_mid,
+  );
+  slab.rotation.z = theta;   // align slab's local X with the radial direction
+  partitionGroup.add(slab);
+}
+partitionGroup.rotation.x = TILT;
+scene.add(partitionGroup);
+
+// ============================================================================
+//  Blow nipple fitting (D14 — sourced part, NOT in mal_plate.stl).
+//  Procedural visualization of the Ø10/Ø6 push-in fitting that mounts
+//  in the bore at (BLOW_NIPPLE_X, BLOW_NIPPLE_Y) on plate-back.
+// ============================================================================
+const blowFittingGroup = new THREE.Group();
+{
+  const BLOW_NIPPLE_THETA_DEG = 101.25;
+  const BLOW_NIPPLE_R         = 42;
+  const BLOW_OD               = 10;
+  const BLOW_ID               = 6;
+  const BLOW_LEN              = 25;
+  const Z_PLATE_BACK          = -12.5;
+  const fittingMat = new THREE.MeshPhongMaterial({
+    color: 0x2a4d8c, shininess: 30, specular: 0x4477aa,    // dark blue, machined-fitting look
+  });
+  // Body: hollow cylinder, hangs off plate-back along -Z (pre-tilt).
+  const ringGeom = new THREE.CylinderGeometry(BLOW_OD / 2, BLOW_OD / 2, BLOW_LEN, 24, 1, true);
+  const ring = new THREE.Mesh(ringGeom, fittingMat);
+  // CylinderGeometry default axis is Y; rotate to make it along -Z (axial).
+  ring.rotation.x = Math.PI / 2;
+  // Position: centred on bore, half-length below plate-back.
+  const theta = BLOW_NIPPLE_THETA_DEG * Math.PI / 180;
+  ring.position.set(
+    Math.cos(theta) * BLOW_NIPPLE_R,
+    Math.sin(theta) * BLOW_NIPPLE_R,
+    Z_PLATE_BACK - BLOW_LEN / 2,
+  );
+  blowFittingGroup.add(ring);
+}
+blowFittingGroup.rotation.x = TILT;
+scene.add(blowFittingGroup);
 
 // ============================================================================
 //  STL load — disc, pool, afstrijker, geleider, drop_tube
@@ -1024,6 +1113,8 @@ const rpmInput      = document.getElementById('rpm');
 const rpmValue      = document.getElementById('rpm-value');
 const vacuumInput   = document.getElementById('vacuum');
 const vacuumValue   = document.getElementById('vacuum-value');
+const blowInput     = document.getElementById('blow');
+const blowValue     = document.getElementById('blow-value');
 const csInput       = document.getElementById('cross-section');
 const markersInput  = document.getElementById('show-markers');
 const poolFillInput = document.getElementById('show-pool-fill');
@@ -1037,6 +1128,8 @@ const discInput        = document.getElementById('show-disc');
 const malPlateInput    = document.getElementById('show-mal-plate');
 const oringInput       = document.getElementById('show-oring');
 const gridInput        = document.getElementById('show-grid');
+const partitionInput   = document.getElementById('show-partition');
+const blowFittingInput = document.getElementById('show-blow-fitting');
 const pinionInput      = document.getElementById('show-pinion');
 const motorInput       = document.getElementById('show-motor');
 const hopperInput      = document.getElementById('show-hopper');
@@ -1069,6 +1162,11 @@ rpmInput.addEventListener('input', () => {
 vacuumInput.addEventListener('input', () => {
   vacuum = parseFloat(vacuumInput.value);
   vacuumValue.textContent = vacuum.toFixed(0) + '%';
+});
+let blow = parseFloat(blowInput.value);
+blowInput.addEventListener('input', () => {
+  blow = parseFloat(blowInput.value);
+  blowValue.textContent = blow.toFixed(0) + '%';
 });
 csInput.addEventListener('change', () => {
   const planes = csInput.checked ? [clipPlane] : [];
@@ -1111,6 +1209,12 @@ oringInput.addEventListener('change', () => {
 });
 gridInput.addEventListener('change', () => {
   grid.visible = gridInput.checked;
+});
+partitionInput.addEventListener('change', () => {
+  partitionGroup.visible = partitionInput.checked;
+});
+blowFittingInput.addEventListener('change', () => {
+  blowFittingGroup.visible = blowFittingInput.checked;
 });
 pinionInput.addEventListener('change', () => {
   if (pinionMesh) pinionMesh.visible = pinionInput.checked;

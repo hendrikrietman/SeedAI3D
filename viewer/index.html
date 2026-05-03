@@ -27,9 +27,14 @@
       <span class="value" id="rpm-value">5.0 rpm</span>
     </div>
     <div class="row">
-      <label for="vacuum">Vacuum</label>
+      <label for="vacuum">Vacuum (sector A)</label>
       <input id="vacuum" type="range" min="0" max="100" step="1" value="80" />
       <span class="value" id="vacuum-value">80%</span>
+    </div>
+    <div class="row">
+      <label for="blow">Blow (sector B)</label>
+      <input id="blow" type="range" min="0" max="100" step="1" value="60" />
+      <span class="value" id="blow-value">60%</span>
     </div>
 
     <div class="row">
@@ -96,6 +101,18 @@
       <label class="toggle">
         <input id="show-oring" type="checkbox" />
         Vacuum O-ring seal (Ø2.5 NBR)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-partition" type="checkbox" checked />
+        Partition wall (sector A/B divider)
+      </label>
+    </div>
+    <div class="row">
+      <label class="toggle">
+        <input id="show-blow-fitting" type="checkbox" checked />
+        Blow nipple fitting (sourced)
       </label>
     </div>
     <div class="row">

@@ -1172,3 +1172,95 @@ clearance holes drilled at R=72 / θ ∈ clip angles; that's a 1-line
 SCAD addition flagged for next iteration.
 
 **Tag**: v5.8.5.
+
+## v6.0.0-dual-sector — Dual-sector chamber + air-flow regulation (D14, 2026-05-03)
+
+Major mal-plate redesign on `dual-sector-blow-chamber` branch, addressing
+two breeder-critical issues:
+
+1. **Light/sticky seed cling at release.** The single 180° vacuum sector
+   from D11 dropped vacuum the moment seeds crossed θ=90°, leaving
+   "hangers" — seeds that didn't release because they cling-stuck to
+   the disc face. Solved with a small (20°) blow sub-sector centred on
+   θ=90°, actively pushing seeds off in the last 20° of travel before
+   release. Matches Monosem MS / MaterMacc MS-300 / vSet pattern.
+
+2. **Vacuum source aggressive enough to face-load the disc.** Above
+   ~−10 kPa the disc binds against the O-ring + recess back wall.
+   Solved with manual needle valves on each hose line + passive bleed
+   orifices (Ø1.5 vacuum, Ø1.0 blow) drilled through the plate-back
+   wall as hard pressure caps. Soybean operating window:
+   vacuum −3 to −8 kPa, blow +0.5 to +2 kPa.
+
+**Geometry** (`scad/lib/parameters.scad`, `scad/v5_6_disc_mal.scad`):
+
+- New parameters section "Dual-sector chamber + air-flow regulation"
+  defining `SECTOR_VACUUM_THETA_*`, `SECTOR_BLOW_THETA_*`,
+  `PARTITION_THETA=110`, `PARTITION_WALL_T=1.5`,
+  `PARTITION_WALL_OVERSIZE=0.4`, `BLOW_NIPPLE_*`, `VAC_BLEED_DIA=1.5`,
+  `BLOW_BLEED_DIA=1.0`, plus computed X/Y from vertex-aligned θ values.
+- Generalised `annular_sector(r_in, r_out, h, theta_start, theta_end, z)`
+  helper using two cube-half-space intersections (replaces an apex-
+  degenerate polygon-pie-slice attempt that produced non-manifold edges).
+- New `mal_partition_wall()` — radial slab at θ=110° with top protruding
+  0.4 mm past chamber-front-wall (0.1 mm gap to disc-back face).
+- `oring_groove_path()` rebuilt as two independent loops, one per sub-sector.
+- `mal_blow_nipple_bore()` new — Ø6 hole through plate-back at θ=101.25°.
+- `mal_bleed_orifices()` new — Ø1.5 + Ø1.0 bleed bores.
+- Vacuum nipple kept at θ=180° (chamber midangle) rather than vacuum
+  sub-sector midangle 190° — moving it triggered CGAL non-manifold
+  edges. θ=180° is well inside the vacuum sub-sector regardless.
+- Blow nipple **body** is NOT in the STL — it's a sourced push-in fitting
+  (Ø10/Ø6 PTC, BOM item) that screws into the bore. Modelling it as
+  printed plate produced repeated non-manifold T-junctions, and it
+  isn't FDM-printable as one piece with the plate anyway.
+- All bore/nipple θ values vertex-aligned to multiples of 360/$fn =
+  5.625° for boolean robustness.
+
+**STL**: `stl/v5_6/mal_plate.stl` re-rendered → 4530 faces (was 3702),
+watertight=True, volume 177980 mm³.
+
+**Viewer** (`viewer/index.html`, `viewer/viewer.js`):
+
+- New "Blow (sector B)" pressure slider 0–100% (default 60%), alongside
+  the existing "Vacuum (sector A)" slider. Both map procedurally to the
+  operator's needle-valve setting.
+- O-ring rendering split into two independent racetrack loops, one per
+  sub-sector, mirroring the SCAD groove geometry.
+- New "Partition wall (sector A/B divider)" toggle (default on) renders
+  the radial slab at θ=110° in dark grey.
+- New "Blow nipple fitting (sourced)" toggle (default on) renders the
+  Ø10/Ø6 push-in fitting in machined-blue, hanging off the plate-back.
+  Communicates the design even though the fitting isn't in the STL.
+
+**Validation** (`validation/geometry_check.py`): 47/47 → 48/48 PASS.
+
+- `disc_clearance` check split into:
+  - `partition_clearance` (min, ≥0.05 mm) — confirms the partition top
+    sits at the design 0.1 mm gap.
+  - `disc_clearance` (5th-percentile, ≥0.35 mm) — confirms the bulk of
+    the recess back wall keeps its original 0.5 mm air gap and only
+    the small partition footprint encroaches.
+
+**Decision record**: D14 added to `docs/decisions.md` with full rationale,
+geometric trade-offs, and cross-references to D11 / D13 / Phase 4 /
+Phase 5 of `docs/prompt_plan.md`.
+
+**BOM stub**: new `docs/bom_draft.md` with regulation-hardware list
+(2 × needle valves, T-fitting, 2 × push-in fittings, hose, O-ring cord).
+Subtotal ~€38 in regulation hardware per element.
+
+**Side effect**: this branch closes Phase 5 of `docs/prompt_plan.md` as a
+side-effect — O-ring parameters present in SCAD, geometry visible in
+viewer behind a toggle, BOM listed, decision recorded.
+
+**Open**:
+- Partition wall's 0.1 mm gap is a light face seal; benchtop test will
+  show whether it leaks enough to cross-contaminate sectors. If yes,
+  add a TPU rim strip or brush seal — Phase 4 of `docs/prompt_plan.md`
+  is the natural place.
+- Cylinder facet alignment ($fn=64 → multiples of 5.625°) is now a
+  documented constraint on any future D14-style feature placement.
+- Detailed seed-lifecycle simulation in the viewer (release behaviour
+  in blow sector vs vacuum drop) deferred — current viewer keeps the
+  existing "vacuum drop at θ=90°" model.

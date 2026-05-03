@@ -369,3 +369,119 @@ exclusivity. Real hardware will need a properly cut access window.
 **Why:** Hendrik wants fully local serving. `npm install` of the full package pulls in 32 MB of unused source/examples. Vendoring three files keeps the repo small and makes `python3 -m http.server -d viewer` work without any other tooling.
 
 **Consequence:** When updating three.js, copy the same three files from `node_modules/three` (regenerated via `npm install three` in `viewer/`).
+
+---
+
+## D14 — Dual-sector chamber + air-flow regulation (2026-05-03)
+
+**Date:** 2026-05-03.
+**Question:** The single 180° vacuum chamber from D11 (mal-plate) lets the
+seed go from "fully held" at θ=110° to "atmospheric" the moment it crosses
+the sector boundary at θ=90°. On light or sticky seed (cowpea, edamame
+in low humidity, soybean dusted with treatment fungicide) this produces
+"hangers" — seeds that don't release cleanly because they've cling-stuck
+to the disc face by the time vacuum drops. Commercial precision seeders
+(Monosem MS, MaterMacc MS-300, Precision Planting vSet) solve this with
+a small positive-pressure (or atmospheric vent) sector at release that
+actively pushes the seed off.
+
+A separate but related issue: an unregulated shop-vac is too aggressive
+for a Ø132 mm disc with a soft NBR face seal. Above ~−10 kPa the disc
+gets face-loaded against the O-ring + recess back wall, friction rises,
+motor torque grows, and the seal wears prematurely. The operator window
+for soybean is roughly **−3 to −8 kPa**: below ~−2 kPa seeds drop in
+transit; above ~−10 kPa the disc binds.
+
+**Decision:** Dual-sector chamber with passive max-pressure clamps and
+manual operator regulation.
+
+1. **Vacuum sub-sector** spans θ ∈ [110°, 270°] (160° of the original
+   180° chamber). Pickup at θ=270° is at the boundary; vacuum is fully
+   active across the whole sub-sector for transport and hold.
+
+2. **Blow sub-sector** spans θ ∈ [90°, 110°] (20° wedge centred on
+   release, narrow Monosem-style). Active blow puts a small positive
+   pressure on the back of the disc in the last 20° of travel before
+   release, ensuring clean separation regardless of cling.
+
+3. **Partition wall** (radial slab, 1.5 mm tangentially thick, R from
+   31 to 53, height = chamber depth + 0.4 mm so it protrudes 0.4 mm past
+   the chamber-front-wall plane and leaves a 0.1 mm gap to the disc
+   back face) isolates the two zones. The 0.1 mm gap is a light face
+   seal — pressure leak between zones is small in the operating
+   range; if benchtop testing shows excessive leakage, a TPU rim
+   strip or brush seal can be added (deferred).
+
+4. **Two hose nipples** on plate-back:
+   - Vacuum nipple at θ=180° (chamber midangle, kept identical to v5.8.5
+     for STL boolean robustness — was moved to θ=190° during prototyping
+     and triggered CGAL non-manifold edges; θ=180° is well inside the
+     vacuum sub-sector regardless).
+   - Blow nipple **bore** only at θ=101.25° (vertex-aligned to multiples
+     of 360/$fn=5.625° for the same robustness reason). The nipple
+     **body** is NOT modelled in the printed plate STL — it is a sourced
+     push-in fitting (Ø10/Ø6 PTC) listed in the BOM, which screws or
+     press-fits into the bore. Modelling it as printed plate material
+     produced repeated non-manifold T-junctions, and the fitting is
+     not FDM-printable as one piece with the plate anyway.
+
+5. **Two passive bleed orifices** drilled straight through the
+   plate-back wall to atmosphere:
+   - Vacuum bleed: Ø1.5 mm at θ=225°. Acts as a hard cap on absolute
+     vacuum — even with the source wide open, the bleed flow limits
+     the chamber pressure. Sized for soybean ceiling at ~−8 kPa with a
+     typical 30 L/min shop-vac.
+   - Blow bleed: Ø1.0 mm at θ=95.625°. Caps the positive pressure
+     to prevent seed launch.
+
+6. **Operator regulation hardware** (BOM only, not printed):
+   - Manual needle valve on each hose line (one for vacuum, one for blow).
+     Operator dials the source pressure for the seed type.
+   - Optional T-fitting to take the blow line off the same shop-vac's
+     exhaust port, with its own needle valve.
+
+7. **O-ring seal** is now two independent racetrack loops, one per
+   sub-sector. Each loop seals its zone against the disc-back face
+   independently; the cord doesn't need to cross the partition.
+
+8. **Soybean operating window** documented in the BOM stub:
+   vacuum −3 to −8 kPa, blow +0.5 to +2 kPa. Other crops will tune
+   from there once benchtop data is available.
+
+**Geometric trade-offs:**
+
+- The blow nipple body NOT being in the STL means the printed plate
+  alone doesn't show "what gets attached where" — the viewer renders
+  the fitting procedurally to communicate the design.
+- The 0.1 mm partition-to-disc gap is intentionally tighter than
+  MAL_BACK_CLEARANCE (0.5 mm) — needed for sealing. This means the
+  validation's `disc_clearance` check now uses the 5th-percentile
+  distance (rather than minimum) so the small partition footprint
+  doesn't fail it. A new `partition_clearance` check confirms the
+  partition top sits at the design 0.1 mm minimum.
+- Bore/nipple θ values must be vertex-aligned to multiples of
+  360/$fn = 5.625° to avoid CGAL non-manifold edges where cylinders
+  intersect at oblique angles. Documented as a constraint on future
+  D14-style features.
+
+**Cross-references:**
+- D11 (integrated mal-plate) — chamber design this supersedes.
+- D13 (visual-vs-physical mal-plate overlap) — physical hardware will
+  still need a hopper access window; not yet addressed.
+- Phase 4 of `docs/prompt_plan.md` (rim brush seals) — partition's
+  0.1 mm gap can be revisited there if leakage is a problem.
+- Phase 5 of `docs/prompt_plan.md` (explicit O-ring) — this branch
+  effectively closes Phase 5 as a side-effect (parameters present,
+  BOM listed, viewer toggle added).
+
+**Files changed:**
+- `scad/lib/parameters.scad` (D14 section, +blow nipple/bleed/partition).
+- `scad/v5_6_disc_mal.scad` (split chamber generalization, partition
+  wall, per-sub-sector grooves, blow bore + bleed orifices).
+- `viewer/viewer.js` (Blow slider, procedural partition + blow
+  fitting + dual-loop O-ring rendering).
+- `viewer/index.html` (Blow slider + 2 new toggles).
+- `validation/geometry_check.py` (split disc_clearance into
+  partition_clearance + p05 disc_clearance).
+- `stl/v5_6/mal_plate.stl`, `viewer/models/mal_plate.stl` (re-rendered).
+- `docs/bom_draft.md` (new, regulator BOM stub).
