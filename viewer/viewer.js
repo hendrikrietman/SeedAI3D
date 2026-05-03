@@ -271,49 +271,96 @@ const holeGlowMeshes = [];
 // ============================================================================
 //  Vacuum O-ring seal (procedural — no STL).
 //  Mirrors the groove geometry cut into the mal-plate at scad/v5_6_disc_mal.scad
-//  (ORING_OUTER_R=53, ORING_INNER_R=31, CORD_DIA=2.5, on plane Z_local=-2.5
-//  in the pre-tilt frame). Rendered as Ø2.5 NBR cord following the chamber
-//  sector perimeter: outer half-arc + inner half-arc + two radial straights
-//  at θ=90° and θ=270°. Default hidden — engineers want to see the groove
-//  before the cord obscures it.
+//  (ORING_OUTER_R=53, ORING_INNER_R=31, CORD_DIA=2.5, GROOVE_W=3.2, GROOVE_D=1.9
+//  on plane Z_local=-2.5 in the pre-tilt frame). Rendered as:
+//    - the Ø2.5 NBR cord nestled in the groove (top tangent to disc-back face,
+//      bottom near groove floor — "compressed-installed" state)
+//    - thin grey "slot wall" outlines bordering the cord path, so the
+//      U-channel that holds the ring is visually obvious without relying
+//      on the STL's tiny 1.9 mm step-height (which gets lost on a 152 mm
+//      plate at typical viewing zoom).
+//  Default hidden — engineers want to see the groove before the cord
+//  obscures it.
 // ============================================================================
 const oringGroup = new THREE.Group();
 {
-  const ORING_OUTER_R = 53;
-  const ORING_INNER_R = 31;
-  const CORD_R        = 1.25;       // 2.5 mm OD cord
-  const Z_RECESS_BK   = -2.5;       // disc-local plane the groove sits on
-  const oringMat = new THREE.MeshPhongMaterial({
+  const ORING_OUTER_R     = 53;
+  const ORING_INNER_R     = 31;
+  const CORD_R            = 1.25;     // 2.5 mm OD cord
+  const GROOVE_HALF_W     = 1.6;      // 3.2 mm groove width / 2
+  const Z_PLATE_FACE      = -2.5;     // disc-local recess back wall (groove top)
+  const Z_GROOVE_FLOOR    = -4.4;     // Z_PLATE_FACE - GROOVE_DEPTH (1.9)
+  const Z_CORD_CENTER     = -3.25;    // mid-compression: cord top ≈ disc back at -2.0
+  const Z_WALL_TOP        = Z_PLATE_FACE;
+  const Z_WALL_BOTTOM     = Z_GROOVE_FLOOR;
+  const WALL_HEIGHT       = Z_WALL_TOP - Z_WALL_BOTTOM;  // 1.9
+  const WALL_HALF_HEIGHT  = WALL_HEIGHT / 2;
+  const Z_WALL_MID        = (Z_WALL_TOP + Z_WALL_BOTTOM) / 2;  // -3.45
+  const cordMat = new THREE.MeshPhongMaterial({
     color: 0x1a1a1a, shininess: 12, specular: 0x222222,
   });
-  // Outer half-torus: TorusGeometry default arc starts at +X going CCW; we
-  // want the arc to span +Y → -X → -Y (chamber sector covers world-x ≤ 0),
-  // so rotate the mesh by +π/2 around Z.
-  const outerArc = new THREE.Mesh(
-    new THREE.TorusGeometry(ORING_OUTER_R, CORD_R, 8, 96, Math.PI),
-    oringMat,
-  );
-  outerArc.rotation.z = Math.PI / 2;
-  outerArc.position.z = Z_RECESS_BK;
-  oringGroup.add(outerArc);
-  const innerArc = new THREE.Mesh(
-    new THREE.TorusGeometry(ORING_INNER_R, CORD_R, 8, 96, Math.PI),
-    oringMat,
-  );
-  innerArc.rotation.z = Math.PI / 2;
-  innerArc.position.z = Z_RECESS_BK;
-  oringGroup.add(innerArc);
+  const wallMat = new THREE.MeshPhongMaterial({
+    color: 0x6e6e6e, shininess: 4,    // light grey — reads as machined slot wall
+  });
+  // ----- Cord (4-piece racetrack: outer arc + inner arc + 2 end straights) -----
+  // TorusGeometry default arc starts at +X going CCW; we want the arc to span
+  // +Y → -X → -Y (chamber sector covers world-x ≤ 0), so each torus mesh is
+  // rotated by +π/2 around Z to put its starting point at +Y.
+  const arc = (R, z) => {
+    const m = new THREE.Mesh(
+      new THREE.TorusGeometry(R, CORD_R, 8, 96, Math.PI), cordMat,
+    );
+    m.rotation.z = Math.PI / 2;
+    m.position.z = z;
+    return m;
+  };
+  oringGroup.add(arc(ORING_OUTER_R, Z_CORD_CENTER));
+  oringGroup.add(arc(ORING_INNER_R, Z_CORD_CENTER));
   // Two radial end straights closing the racetrack at θ=90° and θ=270°.
   // CylinderGeometry's default axis is Y, so no rotation needed.
   const straightLen = ORING_OUTER_R - ORING_INNER_R;             // 22 mm
   const straightMid = (ORING_OUTER_R + ORING_INNER_R) / 2;       // 42 mm
   const straightGeom = new THREE.CylinderGeometry(CORD_R, CORD_R, straightLen, 16);
-  const top    = new THREE.Mesh(straightGeom, oringMat);
-  top.position.set(0, +straightMid, Z_RECESS_BK);
-  oringGroup.add(top);
-  const bottom = new THREE.Mesh(straightGeom, oringMat);
-  bottom.position.set(0, -straightMid, Z_RECESS_BK);
-  oringGroup.add(bottom);
+  for (const sign of [+1, -1]) {
+    const m = new THREE.Mesh(straightGeom, cordMat);
+    m.position.set(0, sign * straightMid, Z_CORD_CENTER);
+    oringGroup.add(m);
+  }
+  // ----- Slot walls (visualizes the groove cut in the STL — full 1.9 mm tall,
+  // contrasting colour, sandwiches the cord on both inner and outer sides
+  // of every arc and end straight). Wall thickness 0.4 mm is exaggerated for
+  // visibility; actual STL cut has zero-thickness walls (they're just the
+  // sides of the rectangular groove).
+  const WALL_T = 0.4;
+  const wallArc = (R, z) => {
+    const m = new THREE.Mesh(
+      new THREE.TorusGeometry(R, WALL_T / 2, 4, 96, Math.PI), wallMat,
+    );
+    m.rotation.z = Math.PI / 2;
+    m.position.z = z;
+    m.scale.y = WALL_HEIGHT / WALL_T;   // stretch the tube cross-section vertically into a wall
+    return m;
+  };
+  // Outer-groove walls at R = 53 ± 1.6
+  oringGroup.add(wallArc(ORING_OUTER_R - GROOVE_HALF_W, Z_WALL_MID));
+  oringGroup.add(wallArc(ORING_OUTER_R + GROOVE_HALF_W, Z_WALL_MID));
+  // Inner-groove walls at R = 31 ± 1.6
+  oringGroup.add(wallArc(ORING_INNER_R - GROOVE_HALF_W, Z_WALL_MID));
+  oringGroup.add(wallArc(ORING_INNER_R + GROOVE_HALF_W, Z_WALL_MID));
+  // End-straight walls — thin BoxGeometry slabs along Y, at the radial ends.
+  const endStraightLen = (ORING_OUTER_R - ORING_INNER_R) + 2 * GROOVE_HALF_W;
+  const endWallGeom = new THREE.BoxGeometry(endStraightLen, WALL_T, WALL_HEIGHT);
+  for (const ySign of [+1, -1]) {
+    for (const wSign of [-1, +1]) {
+      const m = new THREE.Mesh(endWallGeom, wallMat);
+      m.position.set(
+        -(ORING_OUTER_R + ORING_INNER_R) / 2,                              // X centre at -42
+        ySign * (straightMid + wSign * GROOVE_HALF_W),                     // each side of the end straight
+        Z_WALL_MID,
+      );
+      oringGroup.add(m);
+    }
+  }
 }
 oringGroup.rotation.x = TILT;       // tilt 45° around X to match disc / mal-plate world frame
 oringGroup.visible = false;         // default off
