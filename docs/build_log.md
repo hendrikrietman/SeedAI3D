@@ -1172,3 +1172,34 @@ clearance holes drilled at R=72 / θ ∈ clip angles; that's a 1-line
 SCAD addition flagged for next iteration.
 
 **Tag**: v5.8.5.
+
+## Phase 0 — Workflow scaffolding (2026-05-03)
+
+First pass on the per-phase branch / PR / validation-gate workflow described
+in `docs/prompt_plan.md`. Pure documentation; no SCAD, viewer, validation,
+or STL changes.
+
+Added:
+
+- `docs/prompt_plan.md` — verbatim backup of the phase-based execution plan
+  (Phases 0, 1, 2, 4, 5, F; Phases 3 and 6–12 from the external review
+  deferred until first physical print). Universal startprompt and per-phase
+  prompts live here.
+- `.github/PULL_REQUEST_TEMPLATE.md` — Summary, Phase reference, Files
+  changed, Validation result, Docs updated, Reviewer checklist (validation
+  passes, soybean default intact, no STL hand-edits, no main-pushed
+  commits, viewer toggles preserved).
+- `AGENTS.md` at repo root — project overview, doc pointers
+  (prompt_plan / decisions / build_log), hard rules + workflow rules
+  copied from the universal startprompt, file-sync note.
+- `CLAUDE.md` at repo root — overwritten to be byte-identical to
+  `AGENTS.md`. The two files now exist as filename aliases for different
+  AI tooling conventions (Codex vs Claude Code) and must move together.
+- `README.md` — new "Contributing" section pointing to the prompt plan
+  and AGENTS.md.
+
+**Validation**: 47/47 PASS (baseline unchanged — no geometry touched).
+
+**Open**: branch protection on `main` is configured server-side on GitHub,
+not in this repo. Hendrik to verify the rule set (require PR, require
+review, no force-push) before Phase 1 lands.

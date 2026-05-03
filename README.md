@@ -37,6 +37,18 @@ This repository contains:
 - **Phase 6:** Integrated mal-plate (motor + drive + chamber in one)
 - **Phase 7:** Transparent housing with integrated tubes (in progress)
 
+## Contributing
+
+Work happens one phase at a time, on a branch, behind a PR — `main` is
+never edited directly. The authoritative phase plan lives in
+[`docs/prompt_plan.md`](docs/prompt_plan.md), and the rules every
+contributor (human or AI) must follow are in [`AGENTS.md`](AGENTS.md)
+(also mirrored as `CLAUDE.md`). Each phase has a named branch (e.g.
+`phase-4-rim-brush-seals`), runs through `python3
+validation/geometry_check.py`, appends to `docs/build_log.md`, and ends
+in a PR opened against `main` for review. Architectural choices land in
+[`docs/decisions.md`](docs/decisions.md) as new D-numbered entries.
+
 ## License
 
 CC-BY-SA 4.0 — share-alike, attribution required.
