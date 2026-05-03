@@ -338,7 +338,9 @@ const oringGroup = new THREE.Group();
     );
     m.rotation.z = Math.PI / 2;
     m.position.z = z;
-    m.scale.y = WALL_HEIGHT / WALL_T;   // stretch the tube cross-section vertically into a wall
+    m.scale.z = WALL_HEIGHT / WALL_T;   // stretch the tube cross-section vertically into a wall
+                                        // (Z is axial — perpendicular to major circle, so only
+                                        //  the tube's axial extent is stretched; major circle stays round)
     return m;
   };
   // Outer-groove walls at R = 53 ± 1.6
