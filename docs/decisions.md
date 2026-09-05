@@ -369,3 +369,22 @@ exclusivity. Real hardware will need a properly cut access window.
 **Why:** Hendrik wants fully local serving. `npm install` of the full package pulls in 32 MB of unused source/examples. Vendoring three files keeps the repo small and makes `python3 -m http.server -d viewer` work without any other tooling.
 
 **Consequence:** When updating three.js, copy the same three files from `node_modules/three` (regenerated via `npm install three` in `viewer/`).
+Append to docs/decisions.md
+
+## v7 (2026-09) — proposal, SCAD released, unbuilt
+
+- **D19** Remove geleider, afstrijker 2 and the vertical drop tube. On the 45° face, downhill at θ=90° is radially inward; the released seed rolls into the centre hole by itself.
+- **D20** Drive by internal ring gear on the disc back (75 T m1.5 involute) with a 25 T pinion on the NEMA17, both behind a full-360° seal land. External teeth, lid ring, dust ring, clip posts and inserts are removed.
+- **D21** The funnel is the centre bearing (Ø49.4 skirt in the Ø50 hole), the disc retention (Ø54 front flange) and the drop chute; bayonet lugs behind the plate. Disc swap is tool-free.
+- **D22** 32 holes at R45 (8.8 mm pitch) for soybean. 40 at R42 put adjacent seeds in contact.
+- **D23** Chamber seal is a flat printed TPU gasket frame (2.5 × 2.2 mm in a 0.5 mm recess), not an O-ring cord. First print runs a leak test with and without it.
+- **D24** Closed drum: clear cover, disc rim flange over the wall top with the collar outside it (labyrinth), drain slot under the ring cavity.
+- **D25** Collar: static ring whose top face climbs at 73° from the hole circle to the cover. Makes the hole circle the lowest point in the drum so the last seed always reaches a hole. Replaces the trough lip.
+- **D26** Hopper orifice discharges onto the disc face inside the hole circle, via a Ø25 tube at ≥45°; hopper is vertical, 70° walls, one orifice, transparent.
+- **D27** Count mode: speed-dependent slow-down point (N − in-flight − 2), 2 rpm finish, stop on the Nth gate pulse. Empty mode: 30 rpm until 2.5 s of gate silence.
+- **D28** Line change: bench empties through the disc into the last bag (every seed counted); planter empties through a collar gate into a bin. Purge port and vac-cleanup tube removed.
+- **D29** Vacuum enters through an 8 × 30 mm slot in the chamber floor and a flange-mounted barb with a TPU flat gasket; no counterbore in the island (a Ø20 counterbore broke into the ring groove in the first SCAD pass).
+- **D30** Sensor in a separate black elbow: Ø14 throat, two crossed modulated IR pairs, pulse-width doubles detection. Index magnet in the disc, hall sensor in the plate: per-hole expectation windows.
+- **D31** Controller: FYSETC E4 (ESP32, 4 × TMC2209, BLE/Wi-Fi). The console is the viewer page over Web Bluetooth or a Raspberry Pi kiosk; no LCD. Board tray fits Mega+RAMPS and Pi as alternatives.
+- **D32** Vacuum setpoint 25–30 mbar to start, pressure tap to a sensor, bleed valve; tune on the doubles count, not upward by habit.
+- **D33** Hopper tube mouth is flush with the collar face at R53, not 5 mm above the disc inside the hole circle: a seed arriving at ~1 m/s on the 45° face bounces up to 70 mm toward the funnel; sliding down the collar into the V it cannot. Self-regulation then happens at the V.

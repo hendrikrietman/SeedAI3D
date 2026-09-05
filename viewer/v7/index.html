@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SeedAI3D v7 — proposal</title>
+<style>
+  :root{
+    --bg:#262b30; --panel:rgba(28,32,36,.9); --ink:#ebe8df; --mute:#9ca3a9;
+    --line:#3b4248; --seed:#e2c56f;
+  }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:14px/1.45 "Avenir Next","Segoe UI","Helvetica Neue",Arial,sans-serif;overflow:hidden}
+  canvas{display:block}
+  #panel{position:absolute;left:12px;top:12px;width:266px;max-height:calc(100% - 24px);overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px 10px;backdrop-filter:blur(6px)}
+  h1{font-size:16px;font-weight:600;margin:0}
+  .sub{color:var(--mute);font-size:12px;margin:2px 0 10px}
+  h2{font-size:12px;font-weight:600;color:var(--mute);margin:12px 0 5px;padding-top:9px;border-top:1px solid var(--line)}
+  label.row{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer}
+  label.row input{accent-color:var(--seed);margin:0}
+  .sw{width:10px;height:10px;border-radius:2px;flex:none}
+  .slider{display:grid;grid-template-columns:1fr 46px;align-items:center;gap:8px;padding:3px 0}
+  .slider span{font-size:12px;color:var(--mute);text-align:right;font-variant-numeric:tabular-nums}
+  .slider label{grid-column:1/3;font-size:13px;margin-bottom:-2px}
+  input[type=range]{width:100%;accent-color:var(--seed)}
+  ul.gone{margin:0;padding:0 0 0 2px;list-style:none;color:var(--mute);font-size:12.5px}
+  ul.gone li{text-decoration:line-through;text-decoration-color:#7a8087;padding:1px 0}
+  ul.gone li b{text-decoration:none;color:var(--ink);font-weight:500}
+  #hud{position:absolute;right:12px;top:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    padding:10px 14px;min-width:150px;backdrop-filter:blur(6px)}
+  #hud div{display:flex;justify-content:space-between;gap:16px;padding:2px 0;font-variant-numeric:tabular-nums}
+  #hud div span:last-child{font-weight:600}
+  #hud .big{font-size:22px;font-weight:600;color:var(--seed);line-height:1.1}
+  #hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:var(--mute);font-size:12px;pointer-events:none}
+  #console{position:absolute;right:12px;top:252px;width:262px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;backdrop-filter:blur(6px)}
+  #console h2{margin-top:0;padding-top:0;border:0}
+  #console canvas{width:100%;height:auto;border-radius:4px;display:block;border:2px solid #14171a}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+  .btnrow button{margin:0}
+  button.go{background:#2f6b47;border-color:#3f8a5c} button.go:hover{background:#397f55}
+  button.warn{background:#7a4630;border-color:#9a5a3e} button.warn:hover{background:#8d523a}
+  button.small{padding:3px 6px;font-size:12px}
+  .kv{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:3px 0;color:var(--mute)}
+  .kv b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:56px;text-align:center}
+  .kv .pm{display:flex;gap:4px}
+  #ble{font-size:12px;color:var(--mute);margin-top:6px;line-height:1.35}
+  @media (max-width:640px){ #console{position:static;width:auto;margin:0} }
+  button{font:inherit;font-size:13px;color:var(--ink);background:#343a40;border:1px solid var(--line);border-radius:4px;
+    padding:5px 10px;cursor:pointer;width:100%;margin-top:6px}
+  button:hover{background:#3e454c}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--seed);outline-offset:2px}
+  @media (max-width:640px){
+    #panel{left:8px;right:8px;width:auto;top:auto;bottom:8px;max-height:44%}
+    #hud{top:8px;right:8px;padding:8px 10px;min-width:0}
+    #hint{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>SeedAI3D v7</h1>
+  <p class="sub">Seed-counter configuration on the bench stand</p>
+
+  <h2>Parts</h2>
+  <label class="row"><input type="checkbox" data-part="disc" checked><i class="sw" style="background:#c9c4b8"></i>Disc: 32 holes, rim flange, ring gear on the back</label>
+  <label class="row"><input type="checkbox" data-part="plate" checked><i class="sw" style="background:#3f464d"></i>Plate: seal land, chamber, drum wall, feeder socket, motor mount</label>
+  <label class="row"><input type="checkbox" data-part="gasket" checked><i class="sw" style="background:#2b2b2b"></i>TPU gasket around chamber and blow-off</label>
+  <label class="row"><input type="checkbox" data-part="funnel" checked><i class="sw" style="background:#8fb8cf"></i>Funnel: drop chute and centre bearing</label>
+  <label class="row"><input type="checkbox" data-part="drive" checked><i class="sw" style="background:#b9b0a0"></i>Pinion and NEMA17, behind the seal land</label>
+  <label class="row"><input type="checkbox" data-part="sing" checked><i class="sw" style="background:#c9714c"></i>Singulator finger</label>
+  <label class="row"><input type="checkbox" data-part="sensor" checked><i class="sw" style="background:#c8473f"></i>Seed sensor (IR gate)</label>
+  <label class="row"><input type="checkbox" data-part="collar" checked><i class="sw" style="background:#7fa6bd"></i>Collar: 73° pool floor ending on the hole circle</label>
+  <label class="row"><input type="checkbox" data-part="gate" checked><i class="sw" style="background:#5f8ca6"></i>Collar gate and bin (field mode)</label>
+  <label class="row"><input type="checkbox" data-part="cover" checked><i class="sw" style="background:#bfe0f0"></i>Clear front cover</label>
+  <label class="row"><input type="checkbox" data-part="hopper" checked><i class="sw" style="background:#cfe6f2"></i>Bulk hopper: vertical, 65° walls, one orifice</label>
+  <label class="row"><input type="checkbox" data-part="stand" checked><i class="sw" style="background:#5a6168"></i>Bench stand, exit tube, bag holder</label>
+  <label class="row"><input type="checkbox" data-part="console" checked><i class="sw" style="background:#10233a"></i>Console: display, encoder, SD (Mega + RAMPS)</label>
+  <label class="row"><input type="checkbox" data-part="seeds" checked><i class="sw" style="background:#e2c56f"></i>Seeds</label>
+
+  <h2>View</h2>
+  <label class="row"><input type="checkbox" id="cut">Cut-away (chamber, gasket, gear, cone)</label>
+  <div class="slider"><label for="explode">Explode</label><input id="explode" type="range" min="0" max="1" step="0.01" value="0"><span id="explodeV">0%</span></div>
+
+  <h2>Run</h2>
+  <label class="row"><input type="checkbox" id="vac" checked>Vacuum on</label>
+  <div class="slider"><label for="rpm">Disc speed</label><input id="rpm" type="range" min="2" max="20" step="0.5" value="8"><span id="rpmV">8 rpm</span></div>
+  <div class="slider"><label for="tscale">Playback</label><input id="tscale" type="range" min="0.1" max="1" step="0.05" value="0.35"><span id="tscaleV">0.35×</span></div>
+  <button id="pour">Pour a line into the hopper</button>
+  <button id="empty">Empty the pool (open gate)</button>
+
+  <h2>Count mode (bench)</h2>
+  <div class="slider"><label for="target">Seeds per bag</label><input id="target" type="range" min="10" max="100" step="5" value="30"><span id="targetV">30</span></div>
+  <button id="count">Count one bag</button>
+  <button id="emptyHopper">Last bag: empty hopper at 30 rpm</button>
+
+  <h2>Gone from v5.8</h2>
+  <ul class="gone">
+    <li><b>Geleider</b> catch chute</li>
+    <li><b>Afstrijker 2</b> release pusher</li>
+    <li>Vertical <b>drop tube</b></li>
+    <li><b>Lid ring</b>, dust ring, 4 clip posts, inserts</li>
+    <li><b>External teeth</b> on the disc rim</li>
+    <li><b>Hopper</b> as a separate part</li>
+    <li><b>Vac-cleanup tube</b> and purge port</li>
+    <li><b>O-ring cord</b> in a groove</li>
+  </ul>
+</div>
+
+<div id="hud">
+  <div><span>Sown</span><span class="big" id="sown">0</span></div>
+  <div><span>Doubles stripped</span><span id="doubles">0</span></div>
+  <div><span>Skips</span><span id="skips">0</span></div>
+  <div><span>In pool</span><span id="pool">0</span></div>
+  <div><span>Packets</span><span id="packets">0</span></div>
+  <div><span>Recovered</span><span id="recovered">0</span></div>
+  <div><span>Bag</span><span id="env">–</span></div>
+  <div><span>Bags filled</span><span id="envDone">0</span></div>
+  <div><span>Line total</span><span id="lineTotal">0</span></div>
+</div>
+<div id="console">
+  <h2>Console (mirrors the device display)</h2>
+  <canvas id="screenMirror" width="320" height="180"></canvas>
+  <div class="kv"><span>Seeds per bag</span><span class="pm"><button class="small" id="tgtMinus">−5</button><b id="tgtV">30</b><button class="small" id="tgtPlus">+5</button></span></div>
+  <div class="kv"><span>Disc speed</span><span class="pm"><button class="small" id="rpmMinus">−</button><b id="rpmV2">8 rpm</b><button class="small" id="rpmPlus">+</button></span></div>
+  <div class="kv"><span>Vacuum at chamber</span><span class="pm"><button class="small" id="vacMinus">−</button><b id="mbarV">30 mbar</b><button class="small" id="vacPlus">+</button></span></div>
+  <div class="btnrow">
+    <button class="go" id="cStart">Start / next bag</button>
+    <button class="warn" id="cEmpty">Empty hopper</button>
+    <button id="cStop">Stop</button>
+    <button id="cGate">Gate (field)</button>
+  </div>
+  <button id="cBle">Connect device over Bluetooth</button>
+  <div id="ble">Simulation. With a FYSETC E4 (ESP32) running the SeedAI3D firmware, this same page is the display: Chrome or Edge on Android, Windows, macOS or ChromeOS.</div>
+</div>
+<div id="hint">Drag to orbit, scroll to zoom. Hopper feeds the disc face; the collar makes the hole circle the lowest point in the drum, so the last seed always reaches a hole.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const D2R = Math.PI/180;
+
+// ---------- geometry parameters (mm, disc-local: front face = +Z) ----------
+// z-stack, front to back: cover 20..23 | drum wall -3..20 | disc -4.5..-0.5 (rim flange -2.5..-0.5, R66.5)
+// | gasket -6..-4.5 | seal land -10..-6 (full 360°) | ring gear & pinion -16..-10 | back slab -21..-16 | motor behind
+const P = {
+  discR: 64, discT: 4, discFrontZ: -0.5, flangeR: 66.5, holeCircleR: 45, holeN: 32, holeR: 2.0, centreHoleR: 25,
+  ringZ: -16, ringH: 11.5, ringTeeth: 75, ringTipR: 54.75, ringRootR: 57.75, ringOuterR: 63,
+  pinTeeth: 25, pinRootR: 17.25, pinTipR: 20.25, pinX: 37.5, pinZ: -16.5, pinH: 6,
+  plateR: 75, plateBackZ: -21, slabTopZ: -16, landBotZ: -10, landTopZ: -6, gasketTopZ: -4.5,
+  landRin: 38, landRout: 53, chamRin: 41, chamRout: 49, chamA0: 90, chamA1: 270, blowA0: 68, blowA1: 84,
+  wallRin: 65, wallTopZ: -3, drumRin: 67, drumRout: 71, drumTopZ: 20, gateA0: 245, gateA1: 295,
+  coverR: 72, coverZ: 20, coverT: 3,
+  collarRin: 49, collarRtop: 55,        // inner edge 0.3 mm above the disc face; 73° to the face, i.e. 28° below horizontal in the world
+  seedR: 3, singTheta: 232,
+};
+const SEED_SURF_Z = P.discFrontZ + P.seedR;
+
+// ---------- renderer / scene ----------
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x262b30);
+renderer.localClippingEnabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 1, 2000);
+scene.add(new THREE.HemisphereLight(0xdfe6ee, 0x22262a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(90, 220, 160); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.3); fill.position.set(-160, 60, -120); scene.add(fill);
+
+// tilt frame: disc-local +Z (front) -> world (0, sin45, cos45): faces up and toward the viewer
+const tilt = new THREE.Group(); tilt.rotation.x = -45*D2R; scene.add(tilt);
+const plateG = new THREE.Group(); tilt.add(plateG);
+const gasketG = new THREE.Group(); plateG.add(gasketG);
+const gateG = new THREE.Group(); plateG.add(gateG);
+const collarG = new THREE.Group(); plateG.add(collarG);
+const hopperG = new THREE.Group(); scene.add(hopperG);
+const standG = new THREE.Group(); scene.add(standG);
+const coverG = new THREE.Group(); tilt.add(coverG);
+const discFrame = new THREE.Group(); tilt.add(discFrame);
+const discSpin = new THREE.Group(); discFrame.add(discSpin);
+const funnelG = new THREE.Group(); tilt.add(funnelG);
+const driveG = new THREE.Group(); plateG.add(driveG);
+const pinionG = new THREE.Group(); pinionG.position.set(P.pinX, 0, 0); driveG.add(pinionG);
+const singG = new THREE.Group(); plateG.add(singG);
+const sensorG = new THREE.Group(); funnelG.add(sensorG);
+const seedsG = new THREE.Group(); discFrame.add(seedsG);
+let FEED_MOUTH = new THREE.Vector3();
+
+// ---------- materials ----------
+const cutPlane = new THREE.Plane(new THREE.Vector3(-1,0,0), 0);
+const sectionable = [];
+function mat(color, o){
+  o = o||{};
+  const m = new THREE.MeshStandardMaterial({color, roughness:o.rough??0.62, metalness:o.metal??0.05,
+    transparent:!!o.opacity, opacity:o.opacity??1, side:THREE.DoubleSide});
+  if (o.section !== false) sectionable.push(m);
+  return m;
+}
+const M = {
+  plate: mat(0x3f464d, {rough:0.7}),
+  land: mat(0x4b535b, {rough:0.7}),
+  gasket: mat(0x2b2b2b, {rough:0.95}),
+  disc: mat(0xc9c4b8, {rough:0.62}),
+  ring: mat(0xbdb7ab, {rough:0.55}),
+  funnel: mat(0x8fb8cf, {opacity:0.5, rough:0.25}),
+  drum: mat(0x8fb8cf, {opacity:0.4, rough:0.25}),
+  gate: mat(0x7fa6bd, {opacity:0.6, rough:0.25}),
+  cover: mat(0xbfe0f0, {opacity:0.22, rough:0.15}),
+  bin: new THREE.MeshStandardMaterial({color:0x6b7178, roughness:0.6, transparent:true, opacity:0.35, side:THREE.DoubleSide}),
+  pinion: mat(0xb9b0a0, {rough:0.5, section:false}),
+  motor: mat(0x1f2327, {rough:0.4, metal:0.3, section:false}),
+  shaft: mat(0x9aa0a6, {rough:0.3, metal:0.7, section:false}),
+  sing: mat(0xc9714c, {rough:0.6, section:false}),
+  sensor: new THREE.MeshStandardMaterial({color:0xc8473f, roughness:0.4, emissive:0x000000}),
+  seed: new THREE.MeshStandardMaterial({color:0xe2c56f, roughness:0.55}),
+  port: mat(0x3f464d, {rough:0.7, section:false}),
+  hose: new THREE.MeshStandardMaterial({color:0x2a2e33, roughness:0.85, side:THREE.DoubleSide}),
+};
+
+// ---------- shape helpers ----------
+function circle(r){ const s=new THREE.Shape(); s.absarc(0,0,r,0,Math.PI*2,false); return s; }
+function circleHole(r, cx, cy){ const p=new THREE.Path(); p.absarc(cx||0,cy||0,r,0,Math.PI*2,true); return p; }
+function rectHole(cx, cy, w, h){ const p=new THREE.Path(); p.moveTo(cx-w/2,cy-h/2); p.lineTo(cx+w/2,cy-h/2); p.lineTo(cx+w/2,cy+h/2); p.lineTo(cx-w/2,cy+h/2); p.closePath(); return p; }
+function sectorShape(r1, r2, a0, a1){ const s=new THREE.Shape(); s.absarc(0,0,r2,a0*D2R,a1*D2R,false); s.absarc(0,0,r1,a1*D2R,a0*D2R,true); s.closePath(); return s; }
+function sectorHole(r1, r2, a0, a1){ const p=new THREE.Path(); p.absarc(0,0,r2,a0*D2R,a1*D2R,false); p.absarc(0,0,r1,a1*D2R,a0*D2R,true); p.closePath(); return p; }
+function gearPath(N, rRoot, rTip, internal){
+  const p = internal ? new THREE.Path() : new THREE.Shape();
+  const pitch = Math.PI*2/N;
+  for (let k=0;k<N;k++){
+    const a = k*pitch;
+    const pts = [[rRoot,a-0.5*pitch],[rRoot,a-0.27*pitch],[rTip,a-0.13*pitch],[rTip,a+0.13*pitch],[rRoot,a+0.27*pitch]];
+    pts.forEach(([r,t],i)=>{ const x=r*Math.cos(t), y=r*Math.sin(t); if(k===0&&i===0) p.moveTo(x,y); else p.lineTo(x,y); });
+  }
+  p.closePath(); return p;
+}
+function extrude(shape, depth, z, material, seg){
+  const g = new THREE.ExtrudeGeometry(shape, {depth, bevelEnabled:false, curveSegments: seg||40});
+  const m = new THREE.Mesh(g, material); m.position.z = z; return m;
+}
+function cyl(r, h, material, seg){
+  const g = new THREE.CylinderGeometry(r, r, h, seg||32); g.rotateX(Math.PI/2); g.translate(0,0,h/2);
+  return new THREE.Mesh(g, material);
+}
+
+// ---------- disc: body, rim flange (labyrinth over the wall), ring gear on the back ----------
+{
+  const s = circle(P.discR); s.holes.push(circleHole(P.centreHoleR));
+  for (let i=0;i<P.holeN;i++){ const a=i*Math.PI*2/P.holeN; s.holes.push(circleHole(P.holeR, P.holeCircleR*Math.cos(a), P.holeCircleR*Math.sin(a))); }
+  discSpin.add(extrude(s, P.discT, P.discFrontZ - P.discT, M.disc, 48));
+  const fl = circle(P.flangeR); fl.holes.push(circleHole(P.discR - 2));
+  discSpin.add(extrude(fl, 2, P.discFrontZ - 2, M.disc, 64));
+  const rs = circle(P.ringOuterR); rs.holes.push(gearPath(P.ringTeeth, P.ringRootR, P.ringTipR, true));
+  discSpin.add(extrude(rs, P.ringH, P.ringZ, M.ring, 48));
+}
+
+// ---------- plate ----------
+{
+  // back slab: centre bore for the funnel tube, motor shaft bore, dust drain slot under the ring cavity
+  const s = circle(P.plateR); s.holes.push(circleHole(16)); s.holes.push(circleHole(3.6, P.pinX, 0)); s.holes.push(rectHole(0, -59.5, 14, 5));
+  plateG.add(extrude(s, P.slabTopZ - P.plateBackZ, P.plateBackZ, M.plate, 64));
+  // mid slab: island inside the ring-gear groove, with a bite for the pinion (circles intersect at ±17.5°)
+  const ix = 51.03, iy = 16.05, ia = Math.atan2(iy, ix), pa = Math.atan2(iy, ix - P.pinX);
+  const isl = new THREE.Shape(); isl.absarc(0,0,53.5, ia, Math.PI*2 - ia, false); isl.absarc(P.pinX,0,21, -pa, pa, true); isl.closePath();
+  isl.holes.push(circleHole(16));
+  plateG.add(extrude(isl, P.landBotZ - P.slabTopZ, P.slabTopZ, M.plate, 48));
+  // seal land: full 360°, so every pickup hole is closed except over the two cavities
+  const land = circle(P.landRout); land.holes.push(circleHole(P.landRin));
+  land.holes.push(sectorHole(P.chamRin, P.chamRout, P.chamA0, P.chamA1));
+  land.holes.push(sectorHole(P.chamRin, P.chamRout, P.blowA0, P.blowA1));
+  plateG.add(extrude(land, P.landTopZ - P.landBotZ, P.landBotZ, M.land, 48));
+  // printed TPU gasket frames, 2.5 mm wide, sit on the land and rub the disc back
+  const g1 = sectorShape(P.chamRin-2.5, P.chamRout+2.5, P.chamA0-2.5, P.chamA1+2.5); g1.holes.push(sectorHole(P.chamRin, P.chamRout, P.chamA0, P.chamA1));
+  const g2 = sectorShape(P.chamRin-2.5, P.chamRout+2.5, P.blowA0-2.5, P.blowA1+2.5); g2.holes.push(sectorHole(P.chamRin, P.chamRout, P.blowA0, P.blowA1));
+  gasketG.add(extrude(g1, P.gasketTopZ - P.landTopZ, P.landTopZ, M.gasket, 48));
+  gasketG.add(extrude(g2, P.gasketTopZ - P.landTopZ, P.landTopZ, M.gasket, 48));
+  // outer wall up to just under the disc flange
+  const wall = circle(P.plateR); wall.holes.push(circleHole(P.wallRin));
+  plateG.add(extrude(wall, P.wallTopZ - P.plateBackZ, P.plateBackZ, M.plate, 64));
+  // collar: static ring whose flat underside rides 0.3 mm over the disc face and rim flange (seals the rim),
+  // and whose top face climbs at 73° from the hole circle to the cover. No corner anywhere in the drum.
+  const cp = [[P.collarRin, -0.2],[P.collarRin, 0.3],[P.collarRtop, P.drumTopZ],[P.drumRout, P.drumTopZ],[P.drumRout, P.wallTopZ],[P.drumRin, P.wallTopZ],[P.drumRin, -0.2],[P.collarRin, -0.2]]
+    .map(([r,z])=>new THREE.Vector2(r,z));
+  const collarRing = new THREE.LatheGeometry(cp, 96, (P.gateA1+90)*D2R, (360 - (P.gateA1-P.gateA0))*D2R); collarRing.rotateX(Math.PI/2);
+  collarG.add(new THREE.Mesh(collarRing, M.drum));
+  // gate: the bottom 50° of the collar, hinged at its outer bottom edge (field mode only)
+  gateG.position.set(0, -P.drumRout, P.wallTopZ);
+  const gateGeo = new THREE.LatheGeometry(cp, 24, (P.gateA0+90)*D2R, (P.gateA1-P.gateA0)*D2R); gateGeo.rotateX(Math.PI/2);
+  const gate = new THREE.Mesh(gateGeo, M.gate); gate.position.set(0, P.drumRout, -P.wallTopZ); gateG.add(gate);
+  const hinge = cyl(1.6, 60, M.port); hinge.rotation.y = Math.PI/2; hinge.position.set(-30, 0, 0); gateG.add(hinge);
+  // hopper orifice tube: enters through the collar at 305° and discharges onto the disc face inside the hole circle
+  const fa = 305*D2R;
+  const feedDir = new THREE.Vector3(0.6, 0.33, 0.73).normalize();      // world: rises at ~49° up and to the right
+  const feedBase = new THREE.Vector3(53*Math.cos(fa), 53*Math.sin(fa), 11);   // mouth flush with the collar face; seeds slide the last 10 mm into the V
+  const feed = cyl(11, 70, M.port); feed.position.copy(feedBase).addScaledVector(feedDir, 2); feed.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), feedDir); plateG.add(feed);
+  FEED_MOUTH = new THREE.Vector3(50*Math.cos(fa), 50*Math.sin(fa), 4);
+  // world-space anchor for the hopper: end of the orifice tube
+  const tiltQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -45*D2R);
+  const hopperFoot = feedBase.clone().addScaledVector(feedDir, 70).applyQuaternion(tiltQ);
+  {
+    const hp = [[12.5,-8],[12.5,0],[28,48],[32,48],[32,45],[15,3],[15,-8],[12.5,-8]].map(([r,y])=>new THREE.Vector2(r,y));
+    const hopper = new THREE.Mesh(new THREE.LatheGeometry(hp, 64), M.cover); hopper.position.copy(hopperFoot).add(new THREE.Vector3(0,6,0)); hopperG.add(hopper);
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(12, 20, 14), M.port); elbow.position.copy(hopperFoot); hopperG.add(elbow);
+  }
+  // vacuum nipple (20 OD, fits 19 mm hose) at chamber midpoint; blow-off nipple; two mounting bosses
+  const vac = cyl(10, 26, M.port); vac.position.set(-45, 0, P.plateBackZ - 26); plateG.add(vac);
+  const vacB = cyl(8, 2, new THREE.MeshStandardMaterial({color:0x111417})); vacB.position.set(-45, 0, P.plateBackZ - 27); plateG.add(vacB);
+  const ba = (P.blowA0+P.blowA1)/2*D2R;
+  const blow = cyl(6, 18, M.port); blow.position.set(45*Math.cos(ba), 45*Math.sin(ba), P.plateBackZ - 18); plateG.add(blow);
+  [[0, 66],[0,-66]].forEach(([x,y])=>{ const b = cyl(6, 8, M.port); b.position.set(x, y, P.plateBackZ-8); plateG.add(b); });
+}
+
+// ---------- clear front cover: closes the drum, three thumb screws into the drum wall ----------
+{
+  const c = circle(P.coverR); coverG.add(extrude(c, P.coverT, P.coverZ, M.cover, 64));
+  [30, 150, 270].forEach(a=>{ const s = cyl(3.5, 4, M.port); s.position.set(69*Math.cos(a*D2R), 69*Math.sin(a*D2R), P.coverZ + P.coverT); coverG.add(s); });
+}
+
+// ---------- funnel: mouth flange retains the disc, skirt is the centre journal, bayonet flange behind the plate ----------
+{
+  const prof = [[23,2.5],[27,2.5],[27,1],[24.7,1],[24.7,-5],[14,-16],[14,-21.5],[20,-21.5],[20,-24.5],[14,-24.5],
+                [14,-50],[12,-50],[12,-17],[22.5,-4],[23,2.5]].map(([r,z])=>new THREE.Vector2(r,z));
+  const g = new THREE.LatheGeometry(prof, 56); g.rotateX(Math.PI/2);
+  funnelG.add(new THREE.Mesh(g, M.funnel));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(15, 2.2, 10, 40), new THREE.MeshStandardMaterial({color:0x1a1d20, roughness:0.8})); ring.position.z = -32; sensorG.add(ring);
+  const ledA = new THREE.Mesh(new THREE.BoxGeometry(5,4,5), M.sensor); ledA.position.set(0,17,-32); sensorG.add(ledA);
+  const ledB = ledA.clone(); ledB.position.set(0,-17,-32); sensorG.add(ledB);
+}
+
+// ---------- drive: pinion under the seal land, motor behind the plate ----------
+{
+  const ps = gearPath(P.pinTeeth, P.pinRootR, P.pinTipR, false); ps.holes.push(circleHole(2.6));
+  pinionG.add(extrude(ps, P.pinH, P.pinZ, M.pinion, 16));
+  const shaft = cyl(2.5, 11.5, M.shaft); shaft.position.set(P.pinX, 0, P.plateBackZ - 0.5); driveG.add(shaft);
+  const boss = cyl(11, 2, M.motor); boss.position.set(P.pinX, 0, P.plateBackZ - 2); driveG.add(boss);
+  const motor = new THREE.Mesh(new THREE.BoxGeometry(42, 42, 47), M.motor); motor.position.set(P.pinX, 0, P.plateBackZ - 2 - 23.5); driveG.add(motor);
+}
+
+// ---------- singulator finger: hangs from the drum wall, strips doubles as holes leave the pool ----------
+{
+  const a = P.singTheta*D2R, zf = SEED_SURF_Z + P.seedR + 2.4;
+  const finger = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 3.5), M.sing);
+  finger.position.set(P.holeCircleR*Math.cos(a), P.holeCircleR*Math.sin(a), zf); finger.rotation.z = a + Math.PI/2; singG.add(finger);
+  const len = P.collarRtop - P.holeCircleR + 2, rm = (P.collarRtop + P.holeCircleR)/2 + 1;
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(len, 3, 3), M.sing); arm.position.set(rm*Math.cos(a), rm*Math.sin(a), zf); arm.rotation.z = a; singG.add(arm);
+}
+
+// ---------- collection bin, fixed to the world under the open gate ----------
+const bin = new THREE.Mesh(new THREE.BoxGeometry(46, 30, 28), M.bin); bin.position.set(0, -88, 74); scene.add(bin);
+const gateState = {open:false, angle:0, timer:0, vacWas:true};
+// ---------- bench stand: base, two struts to the mounting bosses, exit tube to a vertical drop, bag holder with presence switch ----------
+const EXIT_W = new THREE.Vector3(0, -35.4, -35.4), EXIT_DIR = new THREE.Vector3(0, -0.7071, -0.7071), BEND_W = new THREE.Vector3(0, -52.4, -52.4);
+function strut(a, b, r, material){ const d = b.clone().sub(a); const m = cyl(r, d.length(), material); m.position.copy(a); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), d.normalize()); return m; }
+{
+  const Ms = new THREE.MeshStandardMaterial({color:0x5a6168, roughness:0.7});
+  const base = new THREE.Mesh(new THREE.BoxGeometry(250, 6, 200), Ms); base.position.set(25, -122, -10); standG.add(base);
+  standG.add(strut(new THREE.Vector3(0, 26, -67), new THREE.Vector3(0, -119, -95), 4, Ms));
+  standG.add(strut(new THREE.Vector3(0, -67, 26), new THREE.Vector3(0, -119, 46), 4, Ms));
+  standG.add(strut(new THREE.Vector3(-30, -50, -50), new THREE.Vector3(-30, -119, -50), 4, Ms));
+  standG.add(strut(new THREE.Vector3(30, -50, -50), new THREE.Vector3(30, -119, -50), 4, Ms));
+  standG.add(strut(EXIT_W, BEND_W, 8, M.funnel));
+  standG.add(strut(BEND_W, new THREE.Vector3(0, -62, -52.4), 8, M.funnel));
+  const holder = new THREE.Mesh(new THREE.TorusGeometry(15, 2, 8, 32), Ms); holder.rotation.x = Math.PI/2; holder.position.set(0, -63, -52.4); standG.add(holder);
+  const sw = new THREE.Mesh(new THREE.BoxGeometry(8, 6, 6), new THREE.MeshStandardMaterial({color:0xc8473f})); sw.position.set(18, -66, -52.4); standG.add(sw);
+}
+const bag = new THREE.Mesh(new THREE.BoxGeometry(44, 54, 12), new THREE.MeshStandardMaterial({color:0xd9c9a3, roughness:0.9, transparent:true, opacity:0.8, side:THREE.DoubleSide}));
+bag.position.set(0, -92, -52.4); standG.add(bag);
+const countMode = {phase:'idle', target:30, n:0, done:0, timer:0, vacWas:true, silence:0, lineTotal:0, hopperEmpty:false};
+// vacuum model (assumption, to be replaced by measured curves): below ~25 mbar a Ø4 hole loses soybeans -> skips;
+// above ~40 mbar it holds two -> doubles. Holding force at 30 mbar on Ø4 = 38 mN, ~20x a soybean's weight.
+const vacModel = {mbar: 30, skip(){ return Math.min(0.6, 0.03 + 0.4*Math.max(0, 25 - this.mbar)/15); },
+  dbl(){ return Math.min(0.7, 0.06 + 0.5*Math.max(0, this.mbar - 40)/30); }};
+const ble = {device:null, cmd:null, status:null, live:null};
+
+// ---------- console: 128x64-class display, rotary encoder, two buttons, SD slot. World-fixed beside the element ----------
+const consoleG = new THREE.Group(); scene.add(consoleG);
+const scr = document.createElement('canvas'); scr.width = 320; scr.height = 180;
+const sctx = scr.getContext('2d');
+const scrTex = new THREE.CanvasTexture(scr); scrTex.minFilter = THREE.LinearFilter;
+{
+  const body = new THREE.Mesh(new THREE.BoxGeometry(100, 66, 20), new THREE.MeshStandardMaterial({color:0x2a2f35, roughness:0.7})); consoleG.add(body);
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(70, 41, 1.5), new THREE.MeshStandardMaterial({color:0x14171a, roughness:0.5})); bezel.position.set(-11, 6, 10.2); consoleG.add(bezel);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(66, 37), new THREE.MeshBasicMaterial({map:scrTex})); screen.position.set(-11, 6, 11.1); consoleG.add(screen);
+  const knob = cyl(7, 9, new THREE.MeshStandardMaterial({color:0x9aa0a6, roughness:0.35, metalness:0.6})); knob.position.set(36, 8, 10); consoleG.add(knob);
+  const mark = new THREE.Mesh(new THREE.BoxGeometry(1.2, 5, 0.6), new THREE.MeshBasicMaterial({color:0xe2c56f})); mark.position.set(36, 11, 19.3); consoleG.add(mark);
+  const bStart = cyl(4.5, 3, new THREE.MeshStandardMaterial({color:0x8fc9a0, roughness:0.5})); bStart.position.set(28, -18, 10); consoleG.add(bStart);
+  const bGate = cyl(4.5, 3, new THREE.MeshStandardMaterial({color:0xc9714c, roughness:0.5})); bGate.position.set(43, -18, 10); consoleG.add(bGate);
+  const sd = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 14), new THREE.MeshStandardMaterial({color:0x111417})); sd.position.set(-49.5, -18, 0); consoleG.add(sd);
+  const cable = cyl(2, 70, new THREE.MeshStandardMaterial({color:0x111417, roughness:0.9})); cable.rotation.y = -Math.PI/2; cable.position.set(-50, -28, -4); consoleG.add(cable);
+  consoleG.position.set(150, -100, 30); consoleG.rotation.set(-0.6, 0.6, 0); consoleG.scale.setScalar(0.75);
+}
+let scrFrame = 0;
+function drawScreen(){
+  const c = sctx, W = scr.width, H = scr.height;
+  c.fillStyle = '#10233a'; c.fillRect(0,0,W,H);
+  c.fillStyle = '#dbe9ff'; c.font = 'bold 22px monospace'; c.textBaseline = 'top';
+  if (ble.live){ const L = ble.live;   // {mode, bag, n, target, total, rpm, vac, mbar, doubles, skips, gate}
+    c.fillText((L.mode||'READY').padEnd(6) + ' BAG ' + String(L.bag||0).padStart(3,'0'), 12, 10);
+    c.font = 'bold 64px monospace'; c.fillText(String(L.n||0).padStart(3,' '), 12, 42);
+    c.font = 'bold 26px monospace'; c.fillStyle = '#9fb7d6'; c.fillText('/ ' + (L.target||0), 150, 72);
+    c.font = '20px monospace'; c.fillStyle = '#dbe9ff'; c.fillText(String(L.rpm||0).padStart(2,' ') + ' rpm  ' + (L.mbar!=null ? L.mbar + ' mbar ' : '') + (L.vac ? 'VAC' : 'off') + '  D' + (L.doubles||0) + ' S' + (L.skips||0), 12, 118);
+    c.fillStyle = '#2a4a6e'; c.fillRect(12, 152, W-24, 14); c.fillStyle = '#e2c56f'; c.fillRect(12, 152, (W-24)*Math.min(1, L.target ? (L.n||0)/L.target : 0), 14);
+    scrTex.needsUpdate = true; mirror.drawImage(scr, 0, 0); return; }
+  const cm = countMode, counting = cm.phase !== 'idle', emptying = cm.phase==='emptying' || (cm.phase==='stopping' && cm.hopperEmpty);
+  const head = emptying ? 'EMPTY  LAST BAG' : (counting ? 'COUNT  BAG ' + String(cm.done+1).padStart(3,'0') : (cm.hopperEmpty ? 'HOPPER EMPTY  ' + cm.lineTotal : 'READY  BAG ' + String(cm.done+1).padStart(3,'0')));
+  c.fillText(head, 12, 10);
+  c.font = 'bold 64px monospace';
+  const n = counting ? cm.n : 0, target = cm.target || +targetEl.value;
+  c.fillText(String(n).padStart(3,' '), 12, 42);
+  c.font = 'bold 26px monospace'; c.fillStyle = '#9fb7d6'; c.fillText(emptying ? 'line ' + cm.lineTotal : '/ ' + target, 150, 72);
+  c.font = '20px monospace'; c.fillStyle = '#dbe9ff';
+  const rpmShown = cm.phase==='stopping' ? 0 : (cm.phase==='emptying' ? 30 : (cm.phase==='counting' && cm.target-cm.n <= Math.ceil(+ui.rpm.value*P.holeN/60*0.35)+2 ? 2 : +ui.rpm.value));
+  const vacOn = ui.vac.checked && !gateState.open && cm.phase!=='stopping';
+  c.fillText(rpmShown.toFixed(0).padStart(2,' ') + ' rpm  ' + (vacOn ? vacModel.mbar + ' mbar' : ' 0 mbar') + '  D' + stats.doubles + ' S' + stats.skips, 12, 118);
+  c.fillStyle = '#2a4a6e'; c.fillRect(12, 152, W-24, 14);
+  c.fillStyle = cm.phase==='stopping' ? '#8fc9a0' : '#e2c56f'; c.fillRect(12, 152, (W-24)*(emptying ? Math.min(1, cm.silence/2.5) : Math.min(1, target ? n/target : 0)), 14);
+  if (gateState.open){ c.fillStyle = '#c9714c'; c.font = 'bold 20px monospace'; c.fillText('GATE OPEN', 200, 10); }
+  scrTex.needsUpdate = true; mirror.drawImage(scr, 0, 0);
+}
+
+// ---------- seeds ----------
+const POOL_SLOTS = [];
+[[47,9],[42.5,8],[37,6]].forEach(([R,n])=>{ const step = 6.5/R;
+  for (let k=0;k<n;k++){ const a = 270*D2R + (k-(n-1)/2)*step; POOL_SLOTS.push({x:R*Math.cos(a), y:R*Math.sin(a), seed:null}); } });
+const seedGeo = new THREE.SphereGeometry(P.seedR, 14, 10);
+const freeMeshes = [];
+const seeds = [];
+const holes = [];
+for (let i=0;i<P.holeN;i++) holes.push({seed:null, dbl:null, tried:false});
+const stats = {sown:0, doubles:0, skips:0, packets:0, recovered:0};
+
+function newSeed(){
+  const m = freeMeshes.pop() || new THREE.Mesh(seedGeo, M.seed);
+  m.visible = true; seedsG.add(m);
+  const s = {m, state:'pool', t:0}; seeds.push(s); return s;
+}
+function retire(s){ s.m.visible=false; if (s.m.parent) s.m.parent.remove(s.m); freeMeshes.push(s.m); seeds.splice(seeds.indexOf(s),1); }
+function pourPacket(){
+  if (gateState.open) return;
+  let added = 0;
+  for (const slot of POOL_SLOTS){ if (slot.seed) continue; const s = newSeed(); s.slot = slot; slot.seed = s;
+    s.state='feed'; s.t = -0.07*added; s.from = FEED_MOUTH.clone(); s.to = new THREE.Vector3(slot.x, slot.y, SEED_SURF_Z);
+    s.m.position.copy(s.from); if (++added>=24) break; }
+  if (added) stats.packets++;
+}
+function poolCount(){ return POOL_SLOTS.reduce((n,s)=>n+(s.seed?1:0),0); }
+function takeNearestPoolSeed(x, y){
+  let best=null, bd=1e9;
+  for (const slot of POOL_SLOTS){ if(!slot.seed || slot.seed.state!=='pool') continue; const d=(slot.x-x)**2+(slot.y-y)**2; if(d<bd){bd=d;best=slot;} }
+  if (!best) return null; const s = best.seed; best.seed=null; s.slot=null; return s;
+}
+function freeSlot(){ const f = POOL_SLOTS.filter(s=>!s.seed); return f.length? f[Math.floor(Math.random()*f.length)] : null; }
+function sendToPool(s){
+  const slot = freeSlot(); if(!slot){ retire(s); return; }
+  slot.seed = s; s.slot = slot; s.state='slide'; s.t=0; s.from = s.m.position.clone(); s.to = new THREE.Vector3(slot.x, slot.y, SEED_SURF_Z);
+  seedsG.add(s.m);
+}
+pourPacket();
+
+// ---------- controls ----------
+const targetEl = document.getElementById('target');
+const ui = { cut: document.getElementById('cut'), explode: document.getElementById('explode'), vac: document.getElementById('vac'),
+  rpm: document.getElementById('rpm'), tscale: document.getElementById('tscale') };
+const groups = {disc:[discSpin], plate:[plateG], gasket:[gasketG], funnel:[funnelG], drive:[driveG], sing:[singG], sensor:[sensorG], seeds:[seedsG], gate:[gateG, bin], cover:[coverG], console:[consoleG], collar:[collarG], hopper:[hopperG], stand:[standG, bag]};
+document.querySelectorAll('input[data-part]').forEach(cb=>cb.addEventListener('change', ()=>{ groups[cb.dataset.part].forEach(g=>{ g.visible = cb.checked; }); }));
+let camGoal = null;
+ui.cut.addEventListener('change', ()=>{ sectionable.forEach(m=>{ m.clippingPlanes = ui.cut.checked ? [cutPlane] : []; m.needsUpdate=true; });
+  camGoal = ui.cut.checked ? {theta:1.45, phi:1.05} : {theta:-0.5, phi:1.1}; });
+ui.explode.addEventListener('input', ()=>{ const e=+ui.explode.value; document.getElementById('explodeV').textContent = Math.round(e*100)+'%';
+  discFrame.position.z = 30*e; funnelG.position.z = 60*e; driveG.position.z = -36*e; coverG.position.z = 85*e; gasketG.position.z = 12*e; });
+ui.rpm.addEventListener('input', ()=>{ document.getElementById('rpmV').textContent = ui.rpm.value+' rpm'; document.getElementById('rpmV2').textContent = ui.rpm.value+' rpm'; });
+ui.tscale.addEventListener('input', ()=>{ document.getElementById('tscaleV').textContent = (+ui.tscale.value).toFixed(2)+'×'; });
+document.getElementById('pour').addEventListener('click', ()=>{ countMode.hopperEmpty=false; countMode.lineTotal=0; pourPacket(); });
+// ---- console card: the same actions the physical buttons and knob trigger ----
+const mirror = document.getElementById('screenMirror').getContext('2d');
+function setTarget(v){ v = Math.max(5, Math.min(500, v)); targetEl.value = Math.min(100, v); countMode.target = v; document.getElementById('targetV').textContent = v; document.getElementById('tgtV').textContent = v; if (ble.cmd) bleSend({cmd:'target', n:v}); }
+function setRpm(v){ v = Math.max(2, Math.min(20, v)); ui.rpm.value = v; document.getElementById('rpmV').textContent = v + ' rpm'; document.getElementById('rpmV2').textContent = v + ' rpm'; if (ble.cmd) bleSend({cmd:'rpm', v}); }
+function setMbar(v){ vacModel.mbar = Math.max(10, Math.min(80, v)); document.getElementById('mbarV').textContent = vacModel.mbar + ' mbar'; if (ble.cmd) bleSend({cmd:'vac_set', mbar:vacModel.mbar}); }
+document.getElementById('tgtMinus').addEventListener('click', ()=>setTarget(countMode.target - 5));
+document.getElementById('tgtPlus').addEventListener('click', ()=>setTarget(countMode.target + 5));
+document.getElementById('rpmMinus').addEventListener('click', ()=>setRpm(+ui.rpm.value - 1));
+document.getElementById('rpmPlus').addEventListener('click', ()=>setRpm(+ui.rpm.value + 1));
+document.getElementById('vacMinus').addEventListener('click', ()=>setMbar(vacModel.mbar - 5));
+document.getElementById('vacPlus').addEventListener('click', ()=>setMbar(vacModel.mbar + 5));
+targetEl.addEventListener('input', ()=>{ setTarget(+targetEl.value); });
+document.getElementById('cStart').addEventListener('click', ()=>{ if (ble.cmd){ bleSend({cmd:'count', n:countMode.target}); return; } document.getElementById('count').click(); });
+document.getElementById('cEmpty').addEventListener('click', ()=>{ if (ble.cmd){ bleSend({cmd:'empty'}); return; } document.getElementById('emptyHopper').click(); });
+document.getElementById('cStop').addEventListener('click', ()=>{ if (ble.cmd){ bleSend({cmd:'stop'}); return; }
+  if (countMode.phase==='counting' || countMode.phase==='emptying'){ countMode.phase='stopping'; countMode.timer=0; ui.vac.checked=false; } });
+document.getElementById('cGate').addEventListener('click', ()=>{ if (ble.cmd){ bleSend({cmd:'gate'}); return; } document.getElementById('empty').click(); });
+// ---- Web Bluetooth: one service, a command characteristic (write JSON) and a status characteristic (notify JSON) ----
+const BLE_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e', BLE_CMD = '6e400002-b5a3-f393-e0a9-e50e24dcca9e', BLE_STATUS = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+function bleSend(obj){ if (!ble.cmd) return; ble.cmd.writeValue(new TextEncoder().encode(JSON.stringify(obj))).catch(e=>{ document.getElementById('ble').textContent = 'Send failed: ' + e.message; }); }
+document.getElementById('cBle').addEventListener('click', async ()=>{
+  const out = document.getElementById('ble');
+  if (!navigator.bluetooth){ out.textContent = 'Web Bluetooth is not available in this browser. Use Chrome or Edge on Android, Windows, macOS or ChromeOS (not iOS Safari).'; return; }
+  try {
+    const dev = await navigator.bluetooth.requestDevice({filters:[{namePrefix:'SeedAI3D'}], optionalServices:[BLE_SERVICE]});
+    const srv = await (await dev.gatt.connect()).getPrimaryService(BLE_SERVICE);
+    ble.device = dev; ble.cmd = await srv.getCharacteristic(BLE_CMD); ble.status = await srv.getCharacteristic(BLE_STATUS);
+    await ble.status.startNotifications();
+    ble.status.addEventListener('characteristicvaluechanged', ev=>{ try { ble.live = JSON.parse(new TextDecoder().decode(ev.target.value)); } catch(e){} });
+    dev.addEventListener('gattserverdisconnected', ()=>{ ble.cmd=null; ble.status=null; ble.live=null; out.textContent = 'Disconnected. Simulation.'; });
+    out.textContent = 'Connected: ' + dev.name + '. Display and buttons now drive the device; the 3D view follows its status.';
+    document.getElementById('cBle').textContent = 'Disconnect';
+  } catch (e){ out.textContent = 'No device: ' + e.message; }
+});
+document.getElementById('empty').addEventListener('click', ()=>{ if (gateState.open) return;
+  gateState.open=true; gateState.timer=0; gateState.vacWas=ui.vac.checked; ui.vac.checked=false; });
+
+document.getElementById('count').addEventListener('click', ()=>{ if (countMode.phase!=='idle' || gateState.open) return;
+  countMode.phase='counting'; countMode.target=+targetEl.value; countMode.n=0; countMode.vacWas=ui.vac.checked; ui.vac.checked=true; });
+document.getElementById('emptyHopper').addEventListener('click', ()=>{ if (countMode.phase!=='idle' || gateState.open) return;
+  countMode.phase='emptying'; countMode.n=0; countMode.silence=0; countMode.vacWas=ui.vac.checked; ui.vac.checked=true; });
+
+// ---------- orbit ----------
+const orbit = {theta: -0.5, phi: 1.1, r: 440, target: new THREE.Vector3(25,-25,0)};
+function updateCam(){ const o=orbit; cam.position.set(o.target.x + o.r*Math.sin(o.phi)*Math.sin(o.theta), o.target.y + o.r*Math.cos(o.phi), o.target.z + o.r*Math.sin(o.phi)*Math.cos(o.theta)); cam.lookAt(o.target); }
+updateCam();
+const ptrs = new Map(); let pinchD = 0;
+const el = renderer.domElement;
+el.addEventListener('pointerdown', e=>{ camGoal=null; ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY}); el.setPointerCapture(e.pointerId); });
+el.addEventListener('pointermove', e=>{
+  if (!ptrs.has(e.pointerId)) return;
+  const p = ptrs.get(e.pointerId);
+  if (ptrs.size === 1){ orbit.theta -= (e.clientX-p.x)*0.006; orbit.phi = Math.min(2.9, Math.max(0.2, orbit.phi - (e.clientY-p.y)*0.006)); }
+  p.x=e.clientX; p.y=e.clientY;
+  if (ptrs.size === 2){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); if(pinchD) orbit.r = Math.min(700, Math.max(120, orbit.r * pinchD/d)); pinchD=d; }
+  updateCam();
+});
+const up = e=>{ ptrs.delete(e.pointerId); pinchD=0; };
+el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+el.addEventListener('wheel', e=>{ e.preventDefault(); orbit.r = Math.min(700, Math.max(120, orbit.r*(1+e.deltaY*0.0012))); updateCam(); }, {passive:false});
+addEventListener('resize', ()=>{ cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ---------- simulation ----------
+let phi = 0, last = performance.now(), flash = 0;
+const G_ROLL = 4500;
+const norm = a => { a %= Math.PI*2; return a<0 ? a+Math.PI*2 : a; };
+const deg = a => norm(a)/D2R;
+
+function step(dt){
+  if (ble.live){ const rpmL = +ble.live.rpm || 0; phi -= rpmL*Math.PI*2/60*dt; discSpin.rotation.z = phi; pinionG.rotation.z = phi * P.ringTeeth/P.pinTeeth; return; }
+  // count mode: full speed until three seeds short of target, then 2 rpm, stop on the Nth gate pulse, vacuum off
+  const cm = countMode;
+  let rpm = +ui.rpm.value;
+  // slow-down point depends on speed: seeds already released but not yet at the gate (~0.35 s of travel) still arrive
+  const inFlight = Math.ceil(rpm*P.holeN/60*0.35) + 2;
+  if (cm.phase==='counting' && cm.target - cm.n <= inFlight) rpm = Math.min(rpm, 2);
+  if (cm.phase==='emptying'){ rpm = 30; cm.silence += dt;
+    // gate silent for 2.5 s at 30 rpm = 40 empty hole passes: hopper and drum are empty
+    if (cm.silence > 2.5 && !seeds.some(x=>x.state!=='pool' && x.state!=='held')){ cm.phase='stopping'; cm.timer=0; cm.hopperEmpty=true; ui.vac.checked=false; } }
+  if (cm.phase==='stopping'){ rpm = 0; cm.timer += dt;
+    if (cm.timer > 1.4 && !seeds.some(x=>x.state==='slide'||x.state==='roll'||x.state==='cone'||x.state==='tube'||x.state==='fall')){
+      cm.phase='idle'; cm.done++; ui.vac.checked = cm.vacWas; } }
+  const w = rpm*Math.PI*2/60, vac = ui.vac.checked && !gateState.open && cm.phase!=='stopping';
+  const gs = gateState;
+  gs.angle = gs.open ? Math.min(90, gs.angle + 240*dt) : Math.max(0, gs.angle - 240*dt);
+  gateG.rotation.x = gs.angle*D2R;
+  if (gs.open){
+    gs.timer += dt;
+    if (gs.angle >= 89) for (const slot of POOL_SLOTS){ const s=slot.seed; if (s && s.state==='pool'){ slot.seed=null; s.slot=null; s.state='dump';
+      s.t = -Math.random()*0.35; s.from = s.m.position.clone(); s.to = new THREE.Vector3(s.from.x*0.15, -106, 0); } }
+    const busy = seeds.some(x=>x.state==='dump'||x.state==='slide'||x.state==='held'||x.state==='grab'||x.state==='feed');
+    if (gs.timer > 1.2 && poolCount()===0 && !busy){ gs.open=false; ui.vac.checked = gs.vacWas; }
+  }
+  phi -= w*dt;
+  discSpin.rotation.z = phi;
+  pinionG.rotation.z = phi * P.ringTeeth/P.pinTeeth;
+
+  for (let i=0;i<P.holeN;i++){
+    const h = holes[i], th = deg(phi + i*Math.PI*2/P.holeN), a = th*D2R;
+    const hx = P.holeCircleR*Math.cos(a), hy = P.holeCircleR*Math.sin(a);
+    if (th > 300 || th < 200) h.tried = false;
+    if (vac && !h.seed && !h.tried && th < 282 && th > 258){
+      h.tried = true;
+      if (Math.random() < vacModel.skip()){ stats.skips++; }
+      else {
+        const s = takeNearestPoolSeed(hx, hy);
+        if (s){ s.state='grab'; s.t=0; s.from=s.m.position.clone(); h.seed=s; s.hole=i;
+          if (Math.random() < vacModel.dbl()){ const d = takeNearestPoolSeed(hx, hy); if (d){ d.state='grab'; d.t=0; d.from=d.m.position.clone(); d.dbl=true; h.dbl=d; d.hole=i; } } }
+      }
+    }
+    const place = (s, R) => { s.m.position.set(R*Math.cos(a), R*Math.sin(a), SEED_SURF_Z); };
+    if (h.seed && h.seed.state==='held') place(h.seed, P.holeCircleR);
+    if (h.dbl && h.dbl.state==='held') place(h.dbl, P.holeCircleR + 6.2);
+    if (h.dbl && h.dbl.state==='held' && th < P.singTheta + 4 && th > 150){ stats.doubles++; const d=h.dbl; h.dbl=null; sendToPool(d); }
+    if (!vac){ if (h.seed && h.seed.state==='held'){ sendToPool(h.seed); h.seed=null; } if (h.dbl && h.dbl.state==='held'){ sendToPool(h.dbl); h.dbl=null; } }
+    if (h.seed && h.seed.state==='held' && th < 90 && th > 40){
+      const s=h.seed; h.seed=null; s.state='roll'; s.v = new THREE.Vector2(w*P.holeCircleR, 0); s.p = new THREE.Vector2(s.m.position.x, s.m.position.y);
+      if (h.dbl){ sendToPool(h.dbl); h.dbl=null; }
+    }
+  }
+
+  for (const s of [...seeds]){
+    switch (s.state){
+      case 'feed': { s.t += dt/0.55; const k=Math.max(0,Math.min(1,s.t)), e=k*k; s.m.position.lerpVectors(s.from, s.to, e); s.m.position.z += 4*Math.sin(Math.PI*k); if(k>=1){ s.state='pool'; } break; }
+      case 'dump': { s.t += dt/0.6; const k=Math.max(0,Math.min(1,s.t)), e=k*k; s.m.position.lerpVectors(s.from, s.to, e); if(k>=1){ stats.recovered++; retire(s); } break; }
+      case 'grab': { s.t += dt/0.16; const a=(deg(phi + s.hole*Math.PI*2/P.holeN))*D2R, R = s.dbl ? P.holeCircleR+6.2 : P.holeCircleR;
+        const to = new THREE.Vector3(R*Math.cos(a), R*Math.sin(a), SEED_SURF_Z + 2*(1-Math.abs(2*s.t-1)));
+        s.m.position.lerpVectors(s.from, to, Math.min(1,s.t)); if (s.t>=1){ s.state='held'; } break; }
+      case 'slide': { s.t += dt/0.5; const k=Math.min(1,s.t), e=k*k; s.m.position.lerpVectors(s.from, s.to, e); s.m.position.z += 3*Math.sin(Math.PI*k); if(k>=1){ s.state='pool'; } break; }
+      case 'roll': { s.v.y -= G_ROLL*dt; s.p.addScaledVector(s.v, dt); s.m.position.set(s.p.x, s.p.y, SEED_SURF_Z);
+        if (s.p.length() < P.centreHoleR - 2){ s.state='cone'; s.t=0; s.ang=Math.atan2(s.p.y, s.p.x); s.r0=s.p.length(); funnelG.add(s.m); }
+        else if (s.p.y < -40 || Math.abs(s.p.x) > 60){ sendToPool(s); } break; }
+      case 'cone': { s.t += dt/0.16; const k=Math.min(1,s.t); const r = s.r0 + (10 - s.r0)*k, z = 1 + (-17-1)*k*k;
+        s.m.position.set(r*Math.cos(s.ang), r*Math.sin(s.ang), z); if (k>=1){ s.state='tube'; s.z=-17; s.counted=false; } break; }
+      case 'tube': { s.z -= 650*dt; s.m.position.set(7*Math.cos(s.ang), 7*Math.sin(s.ang), s.z);
+        if (!s.counted && s.z < -32){ s.counted=true; stats.sown++; flash=0.18;
+          cm.lineTotal++;
+          if (cm.phase==='counting'){ cm.n++; if (cm.n >= cm.target){ cm.phase='stopping'; cm.timer=0; ui.vac.checked=false; } }
+          if (cm.phase==='emptying'){ cm.n++; cm.silence=0; } }
+        if (s.z < -50){ s.state='fall'; s.f=0; scene.attach(s.m); } break; }
+      case 'fall': { s.f += 500*dt; const along = Math.min(s.f, 24); s.m.position.copy(EXIT_W).addScaledVector(EXIT_DIR, along); s.m.position.y -= Math.max(0, s.f-24);
+        if (s.m.position.y < -64){ retire(s); } break; }
+    }
+  }
+  // hopper feeds the drum until the line is used up; after an empty cycle nothing arrives until the next line is poured
+  if (poolCount() < 5 && !gateState.open && cm.phase!=='emptying' && !cm.hopperEmpty) pourPacket();
+  flash = Math.max(0, flash - dt);
+  M.sensor.emissive.setHex(flash>0 ? 0xff5a4a : 0x000000);
+  M.sensor.emissiveIntensity = flash>0 ? 1.4 : 0;
+}
+
+function hud(){
+  document.getElementById('sown').textContent = stats.sown;
+  document.getElementById('doubles').textContent = stats.doubles;
+  document.getElementById('skips').textContent = stats.skips;
+  document.getElementById('pool').textContent = poolCount();
+  document.getElementById('packets').textContent = stats.packets;
+  document.getElementById('recovered').textContent = stats.recovered;
+  document.getElementById('env').textContent = countMode.phase==='idle' ? '–' : (countMode.phase==='emptying' ? countMode.n + ' (emptying)' : countMode.n + ' / ' + countMode.target);
+  document.getElementById('envDone').textContent = countMode.done;
+  document.getElementById('lineTotal').textContent = countMode.lineTotal;
+}
+function loop(now){
+  const dt = Math.min(0.05, (now-last)/1000) * +ui.tscale.value; last = now;
+  if (camGoal){ orbit.theta += (camGoal.theta-orbit.theta)*0.08; orbit.phi += (camGoal.phi-orbit.phi)*0.08; updateCam();
+    if (Math.abs(camGoal.theta-orbit.theta)<0.004) camGoal=null; }
+  step(dt); hud(); if ((scrFrame++ & 3) === 0) drawScreen(); renderer.render(scene, cam); requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
